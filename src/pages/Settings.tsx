@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Header } from "@/components/layout/Header";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,14 +88,9 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <Sidebar currentPath="/settings" />
-
-      <main className="pl-16 lg:pl-64 pt-16 transition-all duration-300">
-        <div className="container py-8">
-          {/* Page Header */}
-          <div className="mb-8">
+    <AppLayout>
+      {/* Page Header */}
+      <div className="mb-8">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Configurações
             </h1>
@@ -105,7 +99,7 @@ export default function Settings() {
             </p>
           </div>
 
-          <Tabs defaultValue="whatsapp" className="space-y-6">
+          <Tabs defaultValue="whatsapp" className="space-y-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
             <TabsList className="grid w-full max-w-lg grid-cols-3">
               <TabsTrigger value="whatsapp" className="gap-2">
                 <MessageSquare className="h-4 w-4" />
@@ -123,7 +117,7 @@ export default function Settings() {
 
             {/* WhatsApp Configuration */}
             <TabsContent value="whatsapp" className="space-y-6">
-              <Card>
+              <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -227,7 +221,7 @@ export default function Settings() {
               </Card>
 
               {/* Webhook Info */}
-              <Card>
+              <Card className="animate-fade-in" style={{ animationDelay: '300ms' }}>
                 <CardHeader>
                   <CardTitle className="text-base">Configuração do Webhook</CardTitle>
                   <CardDescription>
@@ -253,7 +247,7 @@ export default function Settings() {
 
             {/* Google Drive Configuration */}
             <TabsContent value="google" className="space-y-6">
-              <Card>
+              <Card className="animate-fade-in" style={{ animationDelay: '400ms' }}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -358,7 +352,7 @@ export default function Settings() {
 
             {/* General Configuration */}
             <TabsContent value="general" className="space-y-6">
-              <Card>
+              <Card className="animate-fade-in" style={{ animationDelay: '500ms' }}>
                 <CardHeader>
                   <CardTitle>Organização de Arquivos</CardTitle>
                   <CardDescription>
@@ -428,7 +422,7 @@ export default function Settings() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="animate-fade-in" style={{ animationDelay: '600ms' }}>
                 <CardHeader>
                   <CardTitle>Limites e Notificações</CardTitle>
                   <CardDescription>
@@ -481,8 +475,6 @@ export default function Settings() {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

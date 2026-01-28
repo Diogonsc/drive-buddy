@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Header } from "@/components/layout/Header";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { ConnectionsOverview } from "@/components/dashboard/ConnectionsOverview";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -106,62 +105,55 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <Sidebar currentPath="/" />
+    <AppLayout>
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Dashboard
+        </h1>
+        <p className="text-muted-foreground">
+          Monitore suas automações e gerencie conexões
+        </p>
+      </div>
 
-      <main className="pl-0 lg:pl-64 pt-16 transition-all duration-300">
-        <div className="container py-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Dashboard
-            </h1>
-            <p className="text-muted-foreground">
-              Monitore suas automações e gerencie conexões
-            </p>
-          </div>
+      {/* Flow Visualization */}
+      <div className="mb-8 animate-fade-in">
+        <FlowVisualization
+          whatsappConnected={whatsappStatus === "connected"}
+          googleDriveConnected={googleDriveStatus === "connected"}
+          isProcessing={whatsappStatus === "connected" && googleDriveStatus === "connected"}
+        />
+      </div>
 
-          {/* Flow Visualization */}
-          <div className="mb-8 animate-fade-in">
-            <FlowVisualization
-              whatsappConnected={whatsappStatus === "connected"}
-              googleDriveConnected={googleDriveStatus === "connected"}
-              isProcessing={whatsappStatus === "connected" && googleDriveStatus === "connected"}
-            />
-          </div>
+      {/* Connections */}
+      <div className="mb-8 animate-fade-in" style={{ animationDelay: "100ms" }}>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Conexões</h2>
+        <ConnectionsOverview
+          whatsappStatus={whatsappStatus}
+          googleDriveStatus={googleDriveStatus}
+          whatsappNumber={whatsappStatus === "connected" ? "+55 11 99999-0000" : undefined}
+          googleDriveEmail={googleDriveStatus === "connected" ? "usuario@gmail.com" : undefined}
+          onConnectWhatsApp={handleConnectWhatsApp}
+          onConnectGoogleDrive={handleConnectGoogleDrive}
+        />
+      </div>
 
-          {/* Connections */}
-          <div className="mb-8 animate-fade-in" style={{ animationDelay: "100ms" }}>
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Conexões</h2>
-            <ConnectionsOverview
-              whatsappStatus={whatsappStatus}
-              googleDriveStatus={googleDriveStatus}
-              whatsappNumber={whatsappStatus === "connected" ? "+55 11 99999-0000" : undefined}
-              googleDriveEmail={googleDriveStatus === "connected" ? "usuario@gmail.com" : undefined}
-              onConnectWhatsApp={handleConnectWhatsApp}
-              onConnectGoogleDrive={handleConnectGoogleDrive}
-            />
-          </div>
+      {/* Metrics */}
+      <div className="mb-8 animate-fade-in" style={{ animationDelay: "200ms" }}>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Métricas</h2>
+        <MetricsGrid metrics={mockMetrics} />
+      </div>
 
-          {/* Metrics */}
-          <div className="mb-8 animate-fade-in" style={{ animationDelay: "200ms" }}>
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Métricas</h2>
-            <MetricsGrid metrics={mockMetrics} />
-          </div>
-
-          {/* Recent Activity */}
-          <div className="animate-fade-in" style={{ animationDelay: "300ms" }}>
-            <RecentActivity
-              entries={mockLogEntries}
-              onRefresh={handleRefresh}
-              onViewAll={handleViewAll}
-              isLoading={isRefreshing}
-            />
-          </div>
-        </div>
-      </main>
-    </div>
+      {/* Recent Activity */}
+      <div className="animate-fade-in" style={{ animationDelay: "300ms" }}>
+        <RecentActivity
+          entries={mockLogEntries}
+          onRefresh={handleRefresh}
+          onViewAll={handleViewAll}
+          isLoading={isRefreshing}
+        />
+      </div>
+    </AppLayout>
   );
 };
 

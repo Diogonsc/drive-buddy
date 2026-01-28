@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
-import { Header } from "@/components/layout/Header";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -274,14 +273,9 @@ export default function Logs() {
   }, [filteredLogs]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <Sidebar currentPath="/logs" />
-
-      <main className="pl-16 lg:pl-64 pt-16 transition-all duration-300">
-        <div className="container py-8">
-          {/* Page Header */}
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <AppLayout>
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 Logs de Atividade
@@ -302,27 +296,27 @@ export default function Logs() {
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <Card>
+      {/* Stats Cards */}
+      <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <Card className="animate-fade-in" style={{ animationDelay: "100ms" }}>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-foreground">{stats.total}</div>
                 <p className="text-xs text-muted-foreground">Total de arquivos</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-emerald-600">{stats.success}</div>
                 <p className="text-xs text-muted-foreground">Sucesso</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-amber-600">{stats.pending}</div>
                 <p className="text-xs text-muted-foreground">Pendentes</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-fade-in" style={{ animationDelay: "400ms" }}>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-destructive">{stats.error}</div>
                 <p className="text-xs text-muted-foreground">Erros</p>
@@ -330,8 +324,8 @@ export default function Logs() {
             </Card>
           </div>
 
-          {/* Filters */}
-          <Card className="mb-6">
+      {/* Filters */}
+      <Card className="mb-6 animate-fade-in" style={{ animationDelay: "500ms" }}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Filter className="h-4 w-4" />
@@ -427,8 +421,8 @@ export default function Logs() {
             </CardContent>
           </Card>
 
-          {/* Table */}
-          <Card>
+      {/* Table */}
+      <Card className="animate-fade-in" style={{ animationDelay: "600ms" }}>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
@@ -525,8 +519,6 @@ export default function Logs() {
               )}
             </CardContent>
           </Card>
-        </div>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

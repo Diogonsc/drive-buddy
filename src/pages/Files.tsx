@@ -1,5 +1,4 @@
-import { Header } from "@/components/layout/Header";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FolderOpen, Image, Video, FileAudio, FileText, ExternalLink } from "lucide-react";
@@ -13,14 +12,9 @@ const folderStructure = [
 
 export default function Files() {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <Sidebar currentPath="/files" />
-
-      <main className="pl-16 lg:pl-64 pt-16 transition-all duration-300">
-        <div className="container py-8">
-          {/* Page Header */}
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <AppLayout>
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 Arquivos
@@ -35,8 +29,8 @@ export default function Files() {
             </Button>
           </div>
 
-          {/* Root Folder */}
-          <Card className="mb-6">
+      {/* Root Folder */}
+      <Card className="mb-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -50,8 +44,8 @@ export default function Files() {
             </CardHeader>
           </Card>
 
-          {/* Subfolders */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Subfolders */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
             {folderStructure.map((folder) => (
               <Card key={folder.name} className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50">
                 <CardContent className="p-6">
@@ -69,8 +63,8 @@ export default function Files() {
             ))}
           </div>
 
-          {/* Info */}
-          <Card className="mt-6">
+      {/* Info */}
+      <Card className="mt-6 animate-fade-in" style={{ animationDelay: '300ms' }}>
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground">
                 Os arquivos são organizados automaticamente em subpastas por tipo e data. 
@@ -78,8 +72,6 @@ export default function Files() {
               </p>
             </CardContent>
           </Card>
-        </div>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

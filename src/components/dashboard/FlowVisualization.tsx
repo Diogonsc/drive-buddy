@@ -73,7 +73,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
               )}
             />
           </div>
-          <span className="text-xs font-medium text-muted-foreground">MediaSync</span>
+          <span className="text-xs font-medium text-muted-foreground">DriveZap</span>
         </div>
 
         {/* Arrow 2 */}

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Header } from "@/components/layout/Header";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { ConnectionsOverview } from "@/components/dashboard/ConnectionsOverview";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -25,14 +24,9 @@ export default function Connections() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <Sidebar currentPath="/connections" />
-
-      <main className="pl-16 lg:pl-64 pt-16 transition-all duration-300">
-        <div className="container py-8">
-          {/* Page Header */}
-          <div className="mb-8">
+    <AppLayout>
+      {/* Page Header */}
+      <div className="mb-8">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Conexões
             </h1>
@@ -41,8 +35,8 @@ export default function Connections() {
             </p>
           </div>
 
-          {/* Connections */}
-          <div className="mb-8">
+      {/* Connections */}
+      <div className="mb-8 animate-fade-in" style={{ animationDelay: "100ms" }}>
             <ConnectionsOverview
               whatsappStatus={whatsappStatus}
               googleDriveStatus={googleDriveStatus}
@@ -53,8 +47,8 @@ export default function Connections() {
             />
           </div>
 
-          {/* Connection Flow */}
-          <Card>
+      {/* Connection Flow */}
+      <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
             <CardHeader>
               <CardTitle>Como funciona a integração</CardTitle>
               <CardDescription>
@@ -111,8 +105,6 @@ export default function Connections() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </main>
-    </div>
+    </AppLayout>
   );
 }
