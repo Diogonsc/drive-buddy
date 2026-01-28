@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Link, useLocation } from "react-router-dom";
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -31,13 +32,15 @@ interface SidebarProps {
   currentPath?: string;
 }
 
-export function Sidebar({ currentPath = "/" }: SidebarProps) {
+export function Sidebar({ currentPath }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+  const activePath = currentPath || location.pathname;
 
   return (
     <aside
       className={cn(
-        "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] border-r border-border bg-sidebar transition-all duration-300",
+        "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] border-r border-border bg-sidebar transition-all duration-300 hidden lg:block",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -45,11 +48,11 @@ export function Sidebar({ currentPath = "/" }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-3">
           {navItems.map((item) => {
-            const isActive = currentPath === item.href;
+            const isActive = activePath === item.href;
             return (
-              <a
+              <Link
                 key={item.href}
-                href={item.href}
+                to={item.href}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
@@ -68,7 +71,7 @@ export function Sidebar({ currentPath = "/" }: SidebarProps) {
                     )}
                   </>
                 )}
-              </a>
+              </Link>
             );
           })}
         </nav>

@@ -110,7 +110,7 @@ const Index = () => {
       <Header />
       <Sidebar currentPath="/" />
 
-      <main className="pl-64 pt-16 transition-all duration-300">
+      <main className="pl-0 lg:pl-64 pt-16 transition-all duration-300">
         <div className="container py-8">
           {/* Page Header */}
           <div className="mb-8">
