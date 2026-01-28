@@ -1,0 +1,22 @@
+# =====================================================
+# DriveZapSync - Supabase Edge Functions Config
+# =====================================================
+
+[api]
+enabled = true
+
+# =====================================================
+# Edge Functions Configuration
+# =====================================================
+
+# WhatsApp Webhook - Público (recebe webhooks do Meta)
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+# Process Media - Interno (chamado pelo webhook)
+[functions.process-media]
+verify_jwt = false
+
+# Google OAuth - Requer autenticação
+[functions.google-oauth]
+verify_jwt = false
