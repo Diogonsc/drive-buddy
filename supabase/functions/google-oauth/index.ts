@@ -7,7 +7,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
 interface OAuthRequest {
@@ -18,12 +18,12 @@ interface OAuthRequest {
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
     // Verificar autenticação do usuário
@@ -35,8 +35,13 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // Criar cliente com anon key e header do usuário para validação do JWT
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    })
+
     const token = authHeader.replace('Bearer ', '')
-    const { data: claims, error: claimsError } = await supabase.auth.getClaims(token)
+    const { data: claims, error: claimsError } = await supabaseAuth.auth.getClaims(token)
     
     if (claimsError || !claims?.claims) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), {
@@ -47,6 +52,9 @@ Deno.serve(async (req: Request) => {
 
     const userId = claims.claims.sub as string
     const { action, code, redirectUri }: OAuthRequest = await req.json()
+
+    // Criar cliente com service role para operações de banco
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Buscar configurações do usuário
     const { data: connection } = await supabase

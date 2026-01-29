@@ -1,12 +1,11 @@
 -- =====================================================
--- DriveZapSync - Row Level Security Policies
--- Execute este script APÓS criar as tabelas
+-- DriveZapSync - RLS Policies
 -- =====================================================
 
--- =====================================================
--- FUNÇÃO: has_role (Security Definer)
--- Verifica roles sem recursão
--- =====================================================
+-- =========================
+-- HELPER FUNCTION
+-- =========================
+
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -14,197 +13,110 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-    SELECT EXISTS (
-        SELECT 1
-        FROM public.user_roles
-        WHERE user_id = _user_id
-          AND role = _role
-    )
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = _role
+  );
 $$;
 
--- =====================================================
--- HABILITAR RLS em todas as tabelas
--- =====================================================
+-- =========================
+-- ENABLE RLS
+-- =========================
+
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.media_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sync_logs ENABLE ROW LEVEL SECURITY;
 
--- =====================================================
--- POLICIES: user_roles
--- =====================================================
+-- =========================
+-- USER ROLES
+-- =========================
 
--- Usuários podem ver apenas seus próprios roles
-CREATE POLICY "Users can view own roles"
-    ON public.user_roles
-    FOR SELECT
-    TO authenticated
-    USING (auth.uid() = user_id);
+CREATE POLICY "Users view own roles"
+ON public.user_roles
+FOR SELECT TO authenticated
+USING (auth.uid() = user_id);
 
--- Admins podem ver todos os roles
-CREATE POLICY "Admins can view all roles"
-    ON public.user_roles
-    FOR SELECT
-    TO authenticated
-    USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins manage roles"
+ON public.user_roles
+FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
--- Apenas admins podem inserir/atualizar/deletar roles
-CREATE POLICY "Admins can manage roles"
-    ON public.user_roles
-    FOR ALL
-    TO authenticated
-    USING (public.has_role(auth.uid(), 'admin'))
-    WITH CHECK (public.has_role(auth.uid(), 'admin'));
+-- =========================
+-- CONNECTIONS / SETTINGS / SUBSCRIPTIONS
+-- =========================
 
--- =====================================================
--- POLICIES: connections
--- =====================================================
+CREATE POLICY "Users manage own connections"
+ON public.connections
+FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
 
--- Usuários podem ver suas próprias conexões
-CREATE POLICY "Users can view own connections"
-    ON public.connections
-    FOR SELECT
-    TO authenticated
-    USING (auth.uid() = user_id);
+CREATE POLICY "Users manage own settings"
+ON public.user_settings
+FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
 
--- Usuários podem atualizar suas próprias conexões
-CREATE POLICY "Users can update own connections"
-    ON public.connections
-    FOR UPDATE
-    TO authenticated
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users view own subscription"
+ON public.subscriptions
+FOR SELECT TO authenticated
+USING (auth.uid() = user_id);
 
--- Usuários podem inserir suas próprias conexões
-CREATE POLICY "Users can insert own connections"
-    ON public.connections
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (auth.uid() = user_id);
+-- =========================
+-- MEDIA FILES
+-- =========================
 
--- =====================================================
--- POLICIES: user_settings
--- =====================================================
+CREATE POLICY "Users manage own media"
+ON public.media_files
+FOR ALL TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
 
--- Usuários podem ver suas próprias configurações
-CREATE POLICY "Users can view own settings"
-    ON public.user_settings
-    FOR SELECT
-    TO authenticated
-    USING (auth.uid() = user_id);
+CREATE POLICY "Service role full access media"
+ON public.media_files
+FOR ALL TO service_role
+USING (true)
+WITH CHECK (true);
 
--- Usuários podem atualizar suas próprias configurações
-CREATE POLICY "Users can update own settings"
-    ON public.user_settings
-    FOR UPDATE
-    TO authenticated
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+-- =========================
+-- SYNC LOGS
+-- =========================
 
--- Usuários podem inserir suas próprias configurações
-CREATE POLICY "Users can insert own settings"
-    ON public.user_settings
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users view own logs"
+ON public.sync_logs
+FOR SELECT TO authenticated
+USING (auth.uid() = user_id);
 
--- =====================================================
--- POLICIES: media_files
--- =====================================================
+CREATE POLICY "Service role full access logs"
+ON public.sync_logs
+FOR ALL TO service_role
+USING (true)
+WITH CHECK (true);
 
--- Usuários podem ver seus próprios arquivos
-CREATE POLICY "Users can view own media files"
-    ON public.media_files
-    FOR SELECT
-    TO authenticated
-    USING (auth.uid() = user_id);
+CREATE POLICY "Admins view all logs"
+ON public.sync_logs
+FOR SELECT TO authenticated
+USING (public.has_role(auth.uid(), 'admin'));
 
--- Usuários podem inserir seus próprios arquivos
-CREATE POLICY "Users can insert own media files"
-    ON public.media_files
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (auth.uid() = user_id);
+-- =========================
+-- WEBHOOK (ANON)
+-- =========================
 
--- Usuários podem atualizar seus próprios arquivos
-CREATE POLICY "Users can update own media files"
-    ON public.media_files
-    FOR UPDATE
-    TO authenticated
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Webhook insert media"
+ON public.media_files
+FOR INSERT TO anon
+WITH CHECK (true);
 
--- Usuários podem deletar seus próprios arquivos
-CREATE POLICY "Users can delete own media files"
-    ON public.media_files
-    FOR DELETE
-    TO authenticated
-    USING (auth.uid() = user_id);
+CREATE POLICY "Webhook insert logs"
+ON public.sync_logs
+FOR INSERT TO anon
+WITH CHECK (true);
 
--- Service role pode fazer tudo (para Edge Functions)
-CREATE POLICY "Service role full access media files"
-    ON public.media_files
-    FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
-
--- =====================================================
--- POLICIES: sync_logs
--- =====================================================
-
--- Usuários podem ver seus próprios logs
-CREATE POLICY "Users can view own sync logs"
-    ON public.sync_logs
-    FOR SELECT
-    TO authenticated
-    USING (auth.uid() = user_id);
-
--- Usuários podem inserir seus próprios logs
-CREATE POLICY "Users can insert own sync logs"
-    ON public.sync_logs
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (auth.uid() = user_id);
-
--- Service role pode fazer tudo (para Edge Functions)
-CREATE POLICY "Service role full access sync logs"
-    ON public.sync_logs
-    FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
-
--- Admins podem ver todos os logs
-CREATE POLICY "Admins can view all sync logs"
-    ON public.sync_logs
-    FOR SELECT
-    TO authenticated
-    USING (public.has_role(auth.uid(), 'admin'));
-
--- =====================================================
--- POLICY ESPECIAL: Webhook público (anon)
--- Para receber webhooks do WhatsApp sem auth
--- =====================================================
-
--- Permitir que anon insira arquivos de mídia via webhook
-CREATE POLICY "Anon can insert media files via webhook"
-    ON public.media_files
-    FOR INSERT
-    TO anon
-    WITH CHECK (true);
-
--- Permitir que anon insira logs via webhook
-CREATE POLICY "Anon can insert sync logs via webhook"
-    ON public.sync_logs
-    FOR INSERT
-    TO anon
-    WITH CHECK (true);
-
--- Permitir que anon leia connections para validar webhook
-CREATE POLICY "Anon can read connections for webhook validation"
-    ON public.connections
-    FOR SELECT
-    TO anon
-    USING (true);
+CREATE POLICY "Webhook read connections"
+ON public.connections
+FOR SELECT TO anon
+USING (true);
