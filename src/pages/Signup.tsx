@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { AuthBranding } from '@/components/auth/AuthBranding'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -66,111 +67,125 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg">
+    <div className="min-h-screen flex">
+      {/* Coluna esquerda: descrição do DriveZap */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] bg-primary">
+        <AuthBranding />
+      </div>
+
+      {/* Coluna direita: formulário */}
+      <div className="w-full lg:w-1/2 xl:w-[45%] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-md">
+          {/* Logo e título no mobile */}
+          <div className="lg:hidden flex flex-col items-center text-center mb-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg mb-3">
               <Cloud className="h-6 w-6 text-primary-foreground" />
             </div>
+            <h1 className="text-xl font-bold">DriveZap</h1>
+            <p className="text-sm text-muted-foreground">WhatsApp → Google Drive</p>
           </div>
-          <CardTitle className="text-2xl font-bold">Criar Conta</CardTitle>
-          <CardDescription>
-            Comece a sincronizar suas mídias do WhatsApp
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                />
+
+          <Card className="border-0 shadow-none lg:shadow-md lg:border">
+            <CardHeader className="space-y-1 pb-6">
+              <CardTitle className="text-2xl font-bold">Criar conta</CardTitle>
+              <CardDescription>
+                Preencha os dados abaixo para começar a sincronizar suas mídias.
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar senha</Label>
+                  <Input
+                    id="confirmPassword"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  {passwordRequirements.map((req, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm">
+                      <Check
+                        className={`h-4 w-4 shrink-0 ${
+                          req.valid ? 'text-green-500' : 'text-muted-foreground'
+                        }`}
+                      />
+                      <span className={req.valid ? 'text-foreground' : 'text-muted-foreground'}>
+                        {req.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-4 pt-2">
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
+                  type="submit"
+                  className="w-full"
+                  disabled={loading || !passwordRequirements.every((r) => r.valid)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Criando conta...
+                    </>
                   ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    'Criar conta'
                   )}
                 </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-              <Input
-                id="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              {passwordRequirements.map((req, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm">
-                  <Check
-                    className={`h-4 w-4 ${
-                      req.valid ? 'text-green-500' : 'text-muted-foreground'
-                    }`}
-                  />
-                  <span className={req.valid ? 'text-foreground' : 'text-muted-foreground'}>
-                    {req.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading || !passwordRequirements.every((r) => r.valid)}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando conta...
-                </>
-              ) : (
-                'Criar Conta'
-              )}
-            </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Já tem uma conta?{' '}
-              <Link to="/login" className="text-primary hover:underline">
-                Fazer login
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+                <p className="text-sm text-muted-foreground text-center">
+                  Já tem uma conta?{' '}
+                  <Link to="/login" className="text-primary font-medium hover:underline">
+                    Fazer login
+                  </Link>
+                </p>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }
