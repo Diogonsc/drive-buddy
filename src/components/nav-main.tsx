@@ -36,18 +36,19 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel>Navegação</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const isActive = location.pathname === item.url
           const hasSubItems = item.items && item.items.length > 0
+          const isSubItemActive = hasSubItems && item.items?.some((sub) => location.pathname === sub.url)
 
           if (hasSubItems) {
             return (
               <Collapsible
                 key={item.title}
                 asChild
-                defaultOpen={isActive}
+                defaultOpen={isActive || isSubItemActive}
                 className="group/collapsible"
               >
                 <SidebarMenuItem>

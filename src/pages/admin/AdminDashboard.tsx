@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { AdminLayout } from "@/components/layout/AdminLayout";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, FileStack, Upload, AlertCircle, Loader2, HelpCircle } from "lucide-react";
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
   const loading = loadingUsers || loadingLogs;
 
   return (
-    <AdminLayout>
+    <AppLayout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Dashboard Admin
@@ -146,6 +146,6 @@ export default function AdminDashboard() {
           </CardDescription>
         </CardHeader>
       </Card>
-    </AdminLayout>
+    </AppLayout>
   );
 }

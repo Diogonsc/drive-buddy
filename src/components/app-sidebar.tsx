@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Link2,
   Settings2,
+  Shield,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -59,6 +60,33 @@ const data = {
       url: "/settings",
       icon: Settings2,
     },
+    {
+      title: "Admin",
+      url: "/admin",
+      icon: Shield,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/admin",
+        },
+        {
+          title: "Usuários",
+          url: "/admin/users",
+        },
+        {
+          title: "Arquivos",
+          url: "/admin/media",
+        },
+        {
+          title: "Logs",
+          url: "/admin/logs",
+        },
+        {
+          title: "Configurações",
+          url: "/admin/settings",
+        }
+      ],
+    }
   ],
 }
 

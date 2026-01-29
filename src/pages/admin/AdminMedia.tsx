@@ -1,4 +1,4 @@
-import { AdminLayout } from "@/components/layout/AdminLayout";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FolderOpen, AlertCircle, Info } from "lucide-react";
@@ -10,7 +10,7 @@ import { FolderOpen, AlertCircle, Info } from "lucide-react";
  */
 export default function AdminMedia() {
   return (
-    <AdminLayout>
+    <AppLayout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Arquivos Processados
@@ -57,6 +57,6 @@ export default function AdminMedia() {
           </div>
         </CardContent>
       </Card>
-    </AdminLayout>
+    </AppLayout>
   );
 }
