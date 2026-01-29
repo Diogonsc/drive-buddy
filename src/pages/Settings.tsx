@@ -483,6 +483,57 @@ export default function Settings() {
                 </p>
               </div>
 
+              {/* Google Cloud Configuration Info */}
+              <Card className="mt-6 border-primary/20 bg-primary/5">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">URLs para Configurar no Google Cloud</CardTitle>
+                  <CardDescription>
+                    Copie estas URLs e adicione no Google Cloud Console
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      Origens JavaScript autorizadas:
+                    </Label>
+                    <div className="rounded-lg bg-muted p-3 space-y-1">
+                      <code className="block text-sm font-mono text-foreground break-all">
+                        {window.location.origin}
+                      </code>
+                      {window.location.protocol === 'http:' && (
+                        <p className="text-xs text-amber-600 mt-2">
+                          ⚠️ Em produção, use <code>https://</code> ao invés de <code>http://</code>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      URIs de redirecionamento autorizados:
+                    </Label>
+                    <div className="rounded-lg bg-muted p-3">
+                      <code className="block text-sm font-mono text-foreground break-all">
+                        {googleConfig.redirectUri}
+                      </code>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      📝 <strong>Como configurar:</strong>
+                    </p>
+                    <ol className="text-xs text-muted-foreground mt-2 ml-4 list-decimal space-y-1">
+                      <li>Acesse o Google Cloud Console</li>
+                      <li>Vá em <strong>APIs e Serviços</strong> → <strong>Credenciais</strong></li>
+                      <li>Selecione seu OAuth 2.0 Client ID</li>
+                      <li>Adicione as URLs acima nos campos correspondentes</li>
+                      <li>Clique em <strong>Salvar</strong></li>
+                    </ol>
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="flex gap-3 pt-4">
                 <Button onClick={handleSaveGoogle} disabled={isSaving}>
                   {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
