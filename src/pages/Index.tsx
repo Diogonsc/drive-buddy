@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ConnectionsOverview } from "@/components/dashboard/ConnectionsOverview";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
@@ -6,103 +7,283 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { FlowVisualization } from "@/components/dashboard/FlowVisualization";
 import { LogEntry } from "@/components/ui/ActivityLog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
-// Mock data - será substituído por dados reais do Supabase
-const mockMetrics = {
-  totalFiles: 1247,
-  images: 856,
-  videos: 234,
-  audios: 89,
-  documents: 68,
-  successRate: 98.5,
-  pendingFiles: 3,
-  storageUsed: "2.4 GB",
-};
-
-const mockLogEntries: LogEntry[] = [
-  {
-    id: "1",
-    mediaType: "image",
-    fileName: "foto_produto_123.jpg",
-    sender: "+55 11 99999-8888",
-    timestamp: new Date(Date.now() - 2 * 60000),
-    status: "success",
-  },
-  {
-    id: "2",
-    mediaType: "video",
-    fileName: "video_apresentacao.mp4",
-    sender: "+55 21 98888-7777",
-    timestamp: new Date(Date.now() - 15 * 60000),
-    status: "success",
-  },
-  {
-    id: "3",
-    mediaType: "document",
-    fileName: "contrato_v2.pdf",
-    sender: "+55 11 97777-6666",
-    timestamp: new Date(Date.now() - 45 * 60000),
-    status: "pending",
-  },
-  {
-    id: "4",
-    mediaType: "audio",
-    fileName: "audio_mensagem.ogg",
-    sender: "+55 31 96666-5555",
-    timestamp: new Date(Date.now() - 2 * 3600000),
-    status: "success",
-  },
-  {
-    id: "5",
-    mediaType: "image",
-    fileName: "comprovante.png",
-    sender: "+55 11 95555-4444",
-    timestamp: new Date(Date.now() - 3 * 3600000),
-    status: "error",
-    errorMessage: "Falha no upload para o Drive",
-  },
-  {
-    id: "6",
-    mediaType: "video",
-    fileName: "tutorial.mp4",
-    sender: "+55 21 94444-3333",
-    timestamp: new Date(Date.now() - 5 * 3600000),
-    status: "success",
-  },
-];
+interface Metrics {
+  totalFiles: number;
+  images: number;
+  videos: number;
+  audios: number;
+  documents: number;
+  successRate: number;
+  pendingFiles: number;
+  storageUsed: string;
+}
 
 const Index = () => {
-  const [whatsappStatus, setWhatsappStatus] = useState<"connected" | "disconnected">("disconnected");
-  const [googleDriveStatus, setGoogleDriveStatus] = useState<"connected" | "disconnected">("disconnected");
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [whatsappStatus, setWhatsappStatus] = useState<"connected" | "disconnected" | "pending" | "error">("disconnected");
+  const [googleDriveStatus, setGoogleDriveStatus] = useState<"connected" | "disconnected" | "pending" | "error">("disconnected");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [metrics, setMetrics] = useState<Metrics>({
+    totalFiles: 0,
+    images: 0,
+    videos: 0,
+    audios: 0,
+    documents: 0,
+    successRate: 0,
+    pendingFiles: 0,
+    storageUsed: "0 B",
+  });
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [connection, setConnection] = useState<{
+    whatsapp_phone_number_id?: string;
+    google_status?: string;
+    whatsapp_status?: string;
+  } | null>(null);
+
+  // Carregar conexões e status
+  useEffect(() => {
+    if (!user) return;
+
+    const loadConnections = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('connections')
+          .select('whatsapp_status, whatsapp_phone_number_id, google_status, google_connected_at')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          setWhatsappStatus((data.whatsapp_status as any) || 'disconnected');
+          setGoogleDriveStatus((data.google_status as any) || 'disconnected');
+          setConnection(data);
+        }
+      } catch (error) {
+        console.error('Error loading connections:', error);
+      }
+    };
+
+    loadConnections();
+  }, [user]);
+
+  // Carregar métricas
+  useEffect(() => {
+    if (!user) return;
+
+    const loadMetrics = async () => {
+      try {
+        // Buscar estatísticas dos arquivos
+        const { data: filesData, error: filesError } = await supabase
+          .from('media_files')
+          .select('file_type, status, file_size_bytes')
+          .eq('user_id', user.id);
+
+        if (filesError) throw filesError;
+
+        const totalFiles = filesData?.length || 0;
+        const images = filesData?.filter(f => f.file_type === 'image').length || 0;
+        const videos = filesData?.filter(f => f.file_type === 'video').length || 0;
+        const audios = filesData?.filter(f => f.file_type === 'audio').length || 0;
+        const documents = filesData?.filter(f => f.file_type === 'document').length || 0;
+        const completed = filesData?.filter(f => f.status === 'completed').length || 0;
+        const pending = filesData?.filter(f => f.status === 'pending' || f.status === 'processing').length || 0;
+        
+        const successRate = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
+        
+        // Calcular armazenamento total
+        const totalBytes = filesData?.reduce((sum, f) => sum + (f.file_size_bytes || 0), 0) || 0;
+        const storageUsed = formatBytes(totalBytes);
+
+        setMetrics({
+          totalFiles,
+          images,
+          videos,
+          audios,
+          documents,
+          successRate: Math.round(successRate * 10) / 10,
+          pendingFiles: pending,
+          storageUsed,
+        });
+      } catch (error) {
+        console.error('Error loading metrics:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMetrics();
+  }, [user]);
+
+  // Carregar atividades recentes
+  useEffect(() => {
+    if (!user) return;
+
+    const loadRecentActivity = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('media_files')
+          .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at')
+          .eq('user_id', user.id)
+          .order('received_at', { ascending: false })
+          .limit(8);
+
+        if (error) throw error;
+
+        const entries: LogEntry[] = (data || []).map(file => ({
+          id: file.id,
+          mediaType: file.file_type as any,
+          fileName: file.file_name,
+          sender: file.sender_phone || file.sender_name || 'Desconhecido',
+          timestamp: new Date(file.received_at),
+          status: mapStatus(file.status),
+          errorMessage: file.error_message || undefined,
+        }));
+
+        setLogEntries(entries);
+      } catch (error) {
+        console.error('Error loading recent activity:', error);
+      }
+    };
+
+    loadRecentActivity();
+  }, [user]);
 
   const handleConnectWhatsApp = () => {
-    toast.info("Conectando ao WhatsApp...", {
-      description: "Configure suas credenciais da API Meta para continuar.",
-    });
-    // Demo: toggle connection
-    setWhatsappStatus((prev) => (prev === "connected" ? "disconnected" : "connected"));
+    navigate('/settings?tab=whatsapp');
   };
 
-  const handleConnectGoogleDrive = () => {
-    toast.info("Conectando ao Google Drive...", {
-      description: "Você será redirecionado para autorizar o acesso.",
-    });
-    // Demo: toggle connection
-    setGoogleDriveStatus((prev) => (prev === "connected" ? "disconnected" : "connected"));
+  const handleConnectGoogleDrive = async () => {
+    if (!user) return;
+
+    try {
+      // Verificar se já tem credenciais configuradas
+      const { data: connection } = await supabase
+        .from('connections')
+        .select('google_client_id, google_client_secret')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!connection?.google_client_id || !connection?.google_client_secret) {
+        toast.error("Configure as credenciais do Google primeiro nas Configurações");
+        navigate('/settings?tab=google');
+        return;
+      }
+
+      // Iniciar OAuth
+      const { data, error } = await supabase.functions.invoke('google-oauth', {
+        body: {
+          action: 'authorize',
+          redirectUri: `${window.location.origin}/oauth/callback`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.authUrl) {
+        window.location.href = data.authUrl;
+      }
+    } catch (error) {
+      console.error('Error connecting Google Drive:', error);
+      toast.error("Erro ao conectar Google Drive");
+    }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
+    try {
+      // Recarregar métricas e atividades
+      const { data: filesData } = await supabase
+        .from('media_files')
+        .select('file_type, status, file_size_bytes')
+        .eq('user_id', user!.id);
+
+      const { data: recentData } = await supabase
+        .from('media_files')
+        .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at')
+        .eq('user_id', user!.id)
+        .order('received_at', { ascending: false })
+        .limit(8);
+
+      // Atualizar métricas
+      if (filesData) {
+        const totalFiles = filesData.length;
+        const completed = filesData.filter(f => f.status === 'completed').length;
+        const pending = filesData.filter(f => f.status === 'pending' || f.status === 'processing').length;
+        const successRate = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
+        const totalBytes = filesData.reduce((sum, f) => sum + (f.file_size_bytes || 0), 0);
+
+        setMetrics(prev => ({
+          ...prev,
+          totalFiles,
+          images: filesData.filter(f => f.file_type === 'image').length,
+          videos: filesData.filter(f => f.file_type === 'video').length,
+          audios: filesData.filter(f => f.file_type === 'audio').length,
+          documents: filesData.filter(f => f.file_type === 'document').length,
+          successRate: Math.round(successRate * 10) / 10,
+          pendingFiles: pending,
+          storageUsed: formatBytes(totalBytes),
+        }));
+      }
+
+      // Atualizar atividades
+      if (recentData) {
+        const entries: LogEntry[] = recentData.map(file => ({
+          id: file.id,
+          mediaType: file.file_type as any,
+          fileName: file.file_name,
+          sender: file.sender_phone || file.sender_name || 'Desconhecido',
+          timestamp: new Date(file.received_at),
+          status: mapStatus(file.status),
+          errorMessage: file.error_message || undefined,
+        }));
+        setLogEntries(entries);
+      }
+
       toast.success("Atividades atualizadas!");
-    }, 1000);
+    } catch (error) {
+      console.error('Error refreshing:', error);
+      toast.error("Erro ao atualizar atividades");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleViewAll = () => {
-    toast.info("Navegando para logs completos...");
+    navigate('/logs');
   };
+
+  // Função auxiliar para formatar bytes
+  function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // Função auxiliar para mapear status do banco para o tipo LogStatus
+  function mapStatus(status: string): "success" | "error" | "pending" {
+    if (status === 'completed') return 'success';
+    if (status === 'failed') return 'error';
+    return 'pending';
+  }
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -131,8 +312,8 @@ const Index = () => {
         <ConnectionsOverview
           whatsappStatus={whatsappStatus}
           googleDriveStatus={googleDriveStatus}
-          whatsappNumber={whatsappStatus === "connected" ? "+55 11 99999-0000" : undefined}
-          googleDriveEmail={googleDriveStatus === "connected" ? "usuario@gmail.com" : undefined}
+          whatsappNumber={connection?.whatsapp_phone_number_id || undefined}
+          googleDriveEmail={googleDriveStatus === "connected" ? user?.email : undefined}
           onConnectWhatsApp={handleConnectWhatsApp}
           onConnectGoogleDrive={handleConnectGoogleDrive}
         />
@@ -141,13 +322,13 @@ const Index = () => {
       {/* Metrics */}
       <div className="mb-8 animate-fade-in" style={{ animationDelay: "200ms" }}>
         <h2 className="mb-4 text-lg font-semibold text-foreground">Métricas</h2>
-        <MetricsGrid metrics={mockMetrics} />
+        <MetricsGrid metrics={metrics} />
       </div>
 
       {/* Recent Activity */}
       <div className="animate-fade-in" style={{ animationDelay: "300ms" }}>
         <RecentActivity
-          entries={mockLogEntries}
+          entries={logEntries}
           onRefresh={handleRefresh}
           onViewAll={handleViewAll}
           isLoading={isRefreshing}

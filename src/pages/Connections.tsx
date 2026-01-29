@@ -21,7 +21,7 @@ import {
 
 interface ConnectionData {
   whatsapp_status: string;
-  whatsapp_phone_id: string | null;
+  whatsapp_phone_number_id: string | null;
   whatsapp_connected_at: string | null;
   google_status: string;
   google_connected_at: string | null;
@@ -40,7 +40,7 @@ export default function Connections() {
     try {
       const { data, error } = await supabase
         .from('connections')
-        .select('whatsapp_status, whatsapp_phone_id, whatsapp_connected_at, google_status, google_connected_at')
+        .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_connected_at, google_status, google_connected_at')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -157,9 +157,9 @@ export default function Connections() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {connection?.whatsapp_phone_id && (
+            {connection?.whatsapp_phone_number_id && (
               <div className="text-sm text-muted-foreground">
-                Phone ID: <code className="text-foreground">{connection.whatsapp_phone_id}</code>
+                Phone ID: <code className="text-foreground">{connection.whatsapp_phone_number_id}</code>
               </div>
             )}
             {connection?.whatsapp_connected_at && (

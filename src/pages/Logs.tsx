@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,94 +40,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { LogEntry } from "@/components/ui/ActivityLog";
-
-// Mock data - será substituído por dados reais do Supabase
-const mockLogs: LogEntry[] = [
-  {
-    id: "1",
-    mediaType: "image",
-    fileName: "foto_produto_123.jpg",
-    sender: "+55 11 99999-8888",
-    timestamp: new Date(Date.now() - 2 * 60000),
-    status: "success",
-  },
-  {
-    id: "2",
-    mediaType: "video",
-    fileName: "video_apresentacao.mp4",
-    sender: "+55 21 98888-7777",
-    timestamp: new Date(Date.now() - 15 * 60000),
-    status: "success",
-  },
-  {
-    id: "3",
-    mediaType: "document",
-    fileName: "contrato_v2.pdf",
-    sender: "+55 11 97777-6666",
-    timestamp: new Date(Date.now() - 45 * 60000),
-    status: "pending",
-  },
-  {
-    id: "4",
-    mediaType: "audio",
-    fileName: "audio_mensagem.ogg",
-    sender: "+55 31 96666-5555",
-    timestamp: new Date(Date.now() - 2 * 3600000),
-    status: "success",
-  },
-  {
-    id: "5",
-    mediaType: "image",
-    fileName: "comprovante.png",
-    sender: "+55 11 95555-4444",
-    timestamp: new Date(Date.now() - 3 * 3600000),
-    status: "error",
-    errorMessage: "Falha no upload para o Drive",
-  },
-  {
-    id: "6",
-    mediaType: "video",
-    fileName: "tutorial.mp4",
-    sender: "+55 21 94444-3333",
-    timestamp: new Date(Date.now() - 5 * 3600000),
-    status: "success",
-  },
-  {
-    id: "7",
-    mediaType: "image",
-    fileName: "screenshot_app.png",
-    sender: "+55 11 93333-2222",
-    timestamp: new Date(Date.now() - 24 * 3600000),
-    status: "success",
-  },
-  {
-    id: "8",
-    mediaType: "document",
-    fileName: "relatorio_mensal.xlsx",
-    sender: "+55 31 92222-1111",
-    timestamp: new Date(Date.now() - 48 * 3600000),
-    status: "success",
-  },
-  {
-    id: "9",
-    mediaType: "audio",
-    fileName: "nota_voz_001.ogg",
-    sender: "+55 21 91111-0000",
-    timestamp: new Date(Date.now() - 72 * 3600000),
-    status: "error",
-    errorMessage: "Arquivo corrompido",
-  },
-  {
-    id: "10",
-    mediaType: "video",
-    fileName: "demo_produto.mp4",
-    sender: "+55 11 90000-9999",
-    timestamp: new Date(Date.now() - 96 * 3600000),
-    status: "success",
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const mediaTypeOptions = [
   { value: "all", label: "Todos os tipos" },
@@ -189,6 +107,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function Logs() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -196,11 +115,87 @@ export default function Logs() {
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const itemsPerPage = 10;
 
+  // Função para mapear status do banco para o tipo LogStatus
+  const mapStatus = (status: string): "success" | "error" | "pending" => {
+    if (status === 'completed') return 'success';
+    if (status === 'failed') return 'error';
+    return 'pending';
+  };
+
+  // Carregar logs do banco
+  const loadLogs = async () => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      let query = supabase
+        .from('media_files')
+        .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at')
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false });
+
+      // Aplicar filtros no backend
+      if (mediaTypeFilter !== "all") {
+        query = query.eq('file_type', mediaTypeFilter);
+      }
+
+      if (statusFilter !== "all") {
+        const statusMap: Record<string, string> = {
+          success: 'completed',
+          error: 'failed',
+          pending: 'pending',
+        };
+        if (statusFilter === 'pending') {
+          query = query.in('status', ['pending', 'processing']);
+        } else {
+          query = query.eq('status', statusMap[statusFilter]);
+        }
+      }
+
+      if (dateFrom) {
+        query = query.gte('received_at', dateFrom.toISOString());
+      }
+
+      if (dateTo) {
+        const endOfDay = new Date(dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('received_at', endOfDay.toISOString());
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const logEntries: LogEntry[] = (data || []).map(file => ({
+        id: file.id,
+        mediaType: file.file_type as any,
+        fileName: file.file_name,
+        sender: file.sender_phone || file.sender_name || 'Desconhecido',
+        timestamp: new Date(file.received_at),
+        status: mapStatus(file.status),
+        errorMessage: file.error_message || undefined,
+      }));
+
+      setLogs(logEntries);
+    } catch (error) {
+      console.error('Error loading logs:', error);
+      toast.error("Erro ao carregar logs");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLogs();
+  }, [user, mediaTypeFilter, statusFilter, dateFrom, dateTo]);
+
   const filteredLogs = useMemo(() => {
-    return mockLogs.filter((log) => {
-      // Search filter
+    return logs.filter((log) => {
+      // Search filter (client-side para melhor UX)
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesSearch =
@@ -209,33 +204,9 @@ export default function Logs() {
         if (!matchesSearch) return false;
       }
 
-      // Media type filter
-      if (mediaTypeFilter !== "all" && log.mediaType !== mediaTypeFilter) {
-        return false;
-      }
-
-      // Status filter
-      if (statusFilter !== "all" && log.status !== statusFilter) {
-        return false;
-      }
-
-      // Date from filter
-      if (dateFrom && log.timestamp < dateFrom) {
-        return false;
-      }
-
-      // Date to filter
-      if (dateTo) {
-        const endOfDay = new Date(dateTo);
-        endOfDay.setHours(23, 59, 59, 999);
-        if (log.timestamp > endOfDay) {
-          return false;
-        }
-      }
-
       return true;
     });
-  }, [searchQuery, mediaTypeFilter, statusFilter, dateFrom, dateTo]);
+  }, [logs, searchQuery]);
 
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
   const paginatedLogs = filteredLogs.slice(
@@ -243,11 +214,40 @@ export default function Logs() {
     currentPage * itemsPerPage
   );
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
+    await loadLogs();
+    setIsRefreshing(false);
+    toast.success("Logs atualizados!");
+  };
+
+  const handleExport = () => {
+    // Criar CSV dos logs filtrados
+    const headers = ['Arquivo', 'Tipo', 'Remetente', 'Status', 'Data/Hora', 'Erro'];
+    const rows = filteredLogs.map(log => [
+      log.fileName,
+      log.mediaType,
+      log.sender,
+      log.status,
+      format(log.timestamp, "dd/MM/yyyy HH:mm", { locale: ptBR }),
+      log.errorMessage || '',
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `logs_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Logs exportados!");
   };
 
   const handleClearFilters = () => {
@@ -257,6 +257,7 @@ export default function Logs() {
     setDateFrom(undefined);
     setDateTo(undefined);
     setCurrentPage(1);
+    // loadLogs será chamado automaticamente pelo useEffect
   };
 
   const formatTimestamp = (date: Date) => {
@@ -289,7 +290,7 @@ export default function Logs() {
                 <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
                 Atualizar
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleExport}>
                 <Download className="mr-2 h-4 w-4" />
                 Exportar
               </Button>
@@ -437,7 +438,16 @@ export default function Logs() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedLogs.length === 0 ? (
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span className="text-muted-foreground">Carregando...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : paginatedLogs.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center">
                           Nenhum registro encontrado

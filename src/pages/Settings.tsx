@@ -75,8 +75,8 @@ export default function Settings() {
 
         if (connection) {
           setWhatsappConfig({
-            phoneNumberId: connection.whatsapp_phone_id || '',
-            accessToken: connection.whatsapp_token || '',
+            phoneNumberId: connection.whatsapp_phone_number_id || '',
+            accessToken: connection.whatsapp_access_token || '',
             webhookVerifyToken: '',
           });
           setGoogleConfig({
@@ -129,8 +129,8 @@ export default function Settings() {
         .from('connections')
         .upsert({
           user_id: user.id,
-          whatsapp_phone_id: whatsappConfig.phoneNumberId,
-          whatsapp_token: whatsappConfig.accessToken,
+          whatsapp_phone_number_id: whatsappConfig.phoneNumberId,
+          whatsapp_access_token: whatsappConfig.accessToken,
           whatsapp_status: whatsappConfig.phoneNumberId && whatsappConfig.accessToken ? 'pending' : 'disconnected',
         }, { onConflict: 'user_id' });
 

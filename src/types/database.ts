@@ -37,8 +37,10 @@ export interface Database {
         Row: {
           id: string
           user_id: string
-          whatsapp_phone_id: string | null
-          whatsapp_token: string | null
+          whatsapp_phone_number_id: string | null
+          whatsapp_business_account_id: string | null
+          whatsapp_access_token: string | null
+          whatsapp_webhook_verify_token: string | null
           whatsapp_status: string
           whatsapp_connected_at: string | null
           google_client_id: string | null
@@ -49,15 +51,17 @@ export interface Database {
           google_token_expires_at: string | null
           google_status: string
           google_connected_at: string | null
-          google_drive_folder_id: string | null
+          google_root_folder: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           user_id: string
-          whatsapp_phone_id?: string | null
-          whatsapp_token?: string | null
+          whatsapp_phone_number_id?: string | null
+          whatsapp_business_account_id?: string | null
+          whatsapp_access_token?: string | null
+          whatsapp_webhook_verify_token?: string | null
           whatsapp_status?: string
           whatsapp_connected_at?: string | null
           google_client_id?: string | null
@@ -68,15 +72,17 @@ export interface Database {
           google_token_expires_at?: string | null
           google_status?: string
           google_connected_at?: string | null
-          google_drive_folder_id?: string | null
+          google_root_folder?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           user_id?: string
-          whatsapp_phone_id?: string | null
-          whatsapp_token?: string | null
+          whatsapp_phone_number_id?: string | null
+          whatsapp_business_account_id?: string | null
+          whatsapp_access_token?: string | null
+          whatsapp_webhook_verify_token?: string | null
           whatsapp_status?: string
           whatsapp_connected_at?: string | null
           google_client_id?: string | null
@@ -87,7 +93,7 @@ export interface Database {
           google_token_expires_at?: string | null
           google_status?: string
           google_connected_at?: string | null
-          google_drive_folder_id?: string | null
+          google_root_folder?: string | null
           created_at?: string
           updated_at?: string
         }
