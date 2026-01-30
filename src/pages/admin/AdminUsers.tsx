@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AdminLayout } from "@/components/layout/AdminLayout";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { EmptyState } from "@/components/admin/EmptyState";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -10,205 +12,250 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { fetchUserRoles, type UserRoleRow } from "@/services/admin/adminQueries";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Eye, Loader2, Search } from "lucide-react";
+import { Shield, Users, Search, RefreshCw, ChevronLeft, ChevronRight, Loader2, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-type UserRow = {
-  user_id: string;
-  roles: string[];
-  created_at: string;
-};
+const ITEMS_PER_PAGE = 15;
 
-/** Lista usuários a partir de user_roles (admin ALL). Sem acesso a connections/subscriptions/auth.users. */
+/**
+ * Gestão de Usuários — lista user_roles (sem dados sensíveis).
+ * Usa AppLayout global. Sem ações destrutivas.
+ */
 export default function AdminUsers() {
+  const [roleFilter, setRoleFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [detailUser, setDetailUser] = useState<UserRow | null>(null);
+  const [page, setPage] = useState(1);
 
-  const { data: rows, isLoading } = useQuery({
-    queryKey: ["admin-users"],
-    queryFn: async (): Promise<UserRow[]> => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("user_id, role, created_at")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const byUser = new Map<string, { roles: string[]; created_at: string }>();
-      for (const r of data ?? []) {
-        const id = r.user_id;
-        const existing = byUser.get(id);
-        if (!existing) {
-          byUser.set(id, {
-            roles: [r.role as string],
-            created_at: r.created_at,
-          });
-        } else {
-          existing.roles.push(r.role as string);
-          if (r.created_at < existing.created_at) existing.created_at = r.created_at;
-        }
-      }
-      return Array.from(byUser.entries()).map(([user_id, v]) => ({
-        user_id,
-        roles: v.roles,
-        created_at: v.created_at,
-      }));
-    },
+  const { data: userRoles, isLoading, refetch } = useQuery({
+    queryKey: ["admin-user-roles"],
+    queryFn: fetchUserRoles,
   });
 
+  // Agrupar por user_id para exibir usuários únicos com suas roles
+  const usersWithRoles = useMemo(() => {
+    if (!userRoles) return [];
+
+    const userMap = new Map<string, { user_id: string; roles: string[]; created_at: string }>();
+    userRoles.forEach((row) => {
+      const existing = userMap.get(row.user_id);
+      if (existing) {
+        existing.roles.push(row.role);
+      } else {
+        userMap.set(row.user_id, {
+          user_id: row.user_id,
+          roles: [row.role],
+          created_at: row.created_at,
+        });
+      }
+    });
+
+    return Array.from(userMap.values());
+  }, [userRoles]);
+
   const filtered = useMemo(() => {
-    if (!rows) return [];
+    let result = usersWithRoles;
+
+    if (roleFilter !== "all") {
+      result = result.filter((u) => u.roles.includes(roleFilter));
+    }
+
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.user_id.toLowerCase().includes(q) ||
-        r.roles.some((role) => role.toLowerCase().includes(q))
-    );
-  }, [rows, search]);
+    if (q) {
+      result = result.filter((u) => u.user_id.toLowerCase().includes(q));
+    }
+
+    return result;
+  }, [usersWithRoles, roleFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginated = filtered.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  );
+
+  const roleOptions = useMemo(() => {
+    const roles = new Set<string>();
+    userRoles?.forEach((r) => roles.add(r.role));
+    return ["all", ...Array.from(roles)];
+  }, [userRoles]);
+
+  const hasFilters = roleFilter !== "all" || !!search.trim();
+
+  const clearFilters = () => {
+    setRoleFilter("all");
+    setSearch("");
+    setPage(1);
+  };
 
   return (
-    <AdminLayout>
+    <AppLayout>
+      {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Gestão de Usuários
-        </h1>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <Shield className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Gestão de Usuários
+          </h1>
+        </div>
         <p className="text-muted-foreground">
-          Contas e roles (user_roles). Email, plano e status de integrações requerem acesso a outras tabelas.
+          Visualização de user_roles. Sem dados sensíveis (email, tokens). Apenas leitura.
         </p>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Filtros</CardTitle>
-          <CardDescription>Buscar por user_id ou role.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="user_id ou role..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        {/* Aviso sobre limitações */}
+        <Alert variant="default" className="border-muted">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Nomes e emails não estão disponíveis — auth.users não é acessível via RLS.
+            Apenas user_id e roles são exibidos.
+          </AlertDescription>
+        </Alert>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>user_id</TableHead>
-                  <TableHead>Criado em</TableHead>
-                  <TableHead>Roles</TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
-                    </TableCell>
-                  </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                      Nenhum registro
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((r) => (
-                    <TableRow key={r.user_id}>
-                      <TableCell className="font-mono text-xs">
-                        {r.user_id.slice(0, 8)}…
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(r.created_at), "dd/MM/yyyy HH:mm", {
-                          locale: ptBR,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {r.roles.map((role) => (
-                            <Badge key={role} variant={role === "admin" ? "default" : "secondary"}>
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDetailUser(r)}
-                          aria-label="Ver detalhes"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!detailUser} onOpenChange={() => setDetailUser(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Detalhes do usuário</DialogTitle>
-            <DialogDescription>
-              Dados disponíveis via user_roles. Email, plano e status WhatsApp/Drive não são expostos ao admin.
-            </DialogDescription>
-          </DialogHeader>
-          {detailUser && (
-            <div className="space-y-4 font-mono text-sm">
-              <div>
-                <p className="text-muted-foreground">user_id</p>
-                <p className="break-all">{detailUser.user_id}</p>
+        {/* Filtros */}
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por user_id..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-              <div>
-                <p className="text-muted-foreground">Criado em</p>
-                <p>
-                  {format(new Date(detailUser.created_at), "dd/MM/yyyy HH:mm:ss", {
-                    locale: ptBR,
-                  })}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Roles</p>
-                <div className="flex flex-wrap gap-1">
-                  {detailUser.roles.map((role) => (
-                    <Badge key={role} variant={role === "admin" ? "default" : "secondary"}>
-                      {role}
-                    </Badge>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role === "all" ? "Todas as roles" : role}
+                    </SelectItem>
                   ))}
-                </div>
-              </div>
-              <p className="rounded-md border bg-muted/50 p-3 text-xs text-muted-foreground">
-                Suspender/reativar e resetar integração exigiriam campos ou tabelas adicionais; não alterados aqui.
-              </p>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Limpar filtros
+                </Button>
+              )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </AdminLayout>
+          </CardContent>
+        </Card>
+
+        {/* Tabela de Usuários */}
+        <AdminSection>
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : paginated.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="Nenhum usuário encontrado"
+                  description={hasFilters ? "Tente ajustar os filtros." : "Não há registros em user_roles."}
+                />
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>user_id</TableHead>
+                          <TableHead>Roles</TableHead>
+                          <TableHead>Criado em</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginated.map((user) => (
+                          <TableRow key={user.user_id}>
+                            <TableCell className="font-mono text-sm">
+                              {user.user_id}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {user.roles.map((role) => (
+                                  <Badge
+                                    key={role}
+                                    variant={role === "admin" ? "default" : "secondary"}
+                                  >
+                                    {role}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {format(new Date(user.created_at), "dd/MM/yyyy HH:mm", {
+                                locale: ptBR,
+                              })}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between border-t px-4 py-3">
+                      <p className="text-sm text-muted-foreground">
+                        {(page - 1) * ITEMS_PER_PAGE + 1}–
+                        {Math.min(page * ITEMS_PER_PAGE, filtered.length)} de {filtered.length}
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          disabled={page <= 1}
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          disabled={page >= totalPages}
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </AdminSection>
+      </div>
+    </AppLayout>
   );
 }
