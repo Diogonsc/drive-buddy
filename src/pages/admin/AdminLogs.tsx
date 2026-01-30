@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AdminLayout } from "@/components/layout/AdminLayout";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { AdminSection } from "@/components/admin/AdminSection";
+import { EmptyState } from "@/components/admin/EmptyState";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -30,7 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchAllLogs, type SyncLogRow } from "@/services/admin/adminQueries";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -44,20 +46,10 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Shield,
+  ScrollText,
 } from "lucide-react";
 import { toast } from "sonner";
-
-type SyncLogRow = {
-  id: string;
-  user_id: string;
-  media_file_id: string | null;
-  action: string;
-  status: string;
-  message: string | null;
-  metadata: Record<string, unknown> | null;
-  source: string | null;
-  created_at: string;
-};
 
 const statusOptions = [
   { value: "all", label: "Todos" },
@@ -69,7 +61,10 @@ const statusOptions = [
 
 const ITEMS_PER_PAGE = 15;
 
-/** Logs do sistema a partir de sync_logs (admin SELECT). */
+/**
+ * Logs do Sistema — sync_logs com filtros, paginação e export.
+ * Usa AppLayout global. Apenas leitura.
+ */
 export default function AdminLogs() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionFilter, setActionFilter] = useState("");
@@ -82,33 +77,21 @@ export default function AdminLogs() {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: [
-      "admin-logs",
+      "admin-all-logs",
       statusFilter,
       actionFilter,
       userIdFilter,
       dateFrom?.toISOString(),
       dateTo?.toISOString(),
     ],
-    queryFn: async (): Promise<SyncLogRow[]> => {
-      let q = supabase
-        .from("sync_logs")
-        .select("id, user_id, media_file_id, action, status, message, metadata, source, created_at")
-        .order("created_at", { ascending: false });
-
-      if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      if (actionFilter) q = q.ilike("action", `%${actionFilter}%`);
-      if (userIdFilter) q = q.eq("user_id", userIdFilter);
-      if (dateFrom) q = q.gte("created_at", dateFrom.toISOString());
-      if (dateTo) {
-        const end = new Date(dateTo);
-        end.setHours(23, 59, 59, 999);
-        q = q.lte("created_at", end.toISOString());
-      }
-
-      const { data: res, error } = await q;
-      if (error) throw error;
-      return (res ?? []) as SyncLogRow[];
-    },
+    queryFn: () =>
+      fetchAllLogs({
+        status: statusFilter,
+        action: actionFilter,
+        userId: userIdFilter,
+        dateFrom: dateFrom?.toISOString(),
+        dateTo: dateTo?.toISOString(),
+      }),
   });
 
   const filtered = useMemo(() => {
@@ -175,186 +158,199 @@ export default function AdminLogs() {
   };
 
   return (
-    <AdminLayout>
+    <AppLayout>
+      {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Logs do Sistema
-        </h1>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <Shield className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Logs do Sistema
+          </h1>
+        </div>
         <p className="text-muted-foreground">
           sync_logs — auditoria e suporte. Apenas leitura.
         </p>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Filter className="h-4 w-4" />
-            Filtros
-          </CardTitle>
-          <CardDescription>
-            status, ação, user_id, período e busca em action/message/source.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-            <div className="relative lg:col-span-2">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              placeholder="Ação (contém)"
-              value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value)}
-            />
-            <Input
-              placeholder="user_id (exato)"
-              value={userIdFilter}
-              onChange={(e) => setUserIdFilter(e.target.value)}
-            />
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFrom ? format(dateFrom, "dd/MM/yyyy", { locale: ptBR }) : "De"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} locale={ptBR} />
-              </PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateTo ? format(dateTo, "dd/MM/yyyy", { locale: ptBR }) : "Até"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} locale={ptBR} />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-              <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
-              Atualizar
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={!filtered.length}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar
-            </Button>
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                Limpar filtros
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>user_id</TableHead>
-                  <TableHead>action</TableHead>
-                  <TableHead>status</TableHead>
-                  <TableHead className="max-w-[200px]">message</TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
-                    </TableCell>
-                  </TableRow>
-                ) : paginated.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                      Nenhum registro
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginated.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">
-                        {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {r.user_id.slice(0, 8)}…
-                      </TableCell>
-                      <TableCell>{r.action}</TableCell>
-                      <TableCell>{statusBadge(r.status)}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                        {r.message ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDetail(r)}
-                          aria-label="Ver detalhes"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                {(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, filtered.length)} de{" "}
-                {filtered.length}
-              </p>
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+      <div className="space-y-6">
+        {/* Filtros */}
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Filter className="h-4 w-4" />
+              Filtros
+            </CardTitle>
+            <CardDescription>
+              status, ação, user_id, período e busca em action/message/source.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+              <div className="relative lg:col-span-2">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
               </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Ação (contém)"
+                value={actionFilter}
+                onChange={(e) => setActionFilter(e.target.value)}
+              />
+              <Input
+                placeholder="user_id (exato)"
+                value={userIdFilter}
+                onChange={(e) => setUserIdFilter(e.target.value)}
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="justify-start font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "dd/MM/yyyy", { locale: ptBR }) : "De"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="justify-start font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateTo ? format(dateTo, "dd/MM/yyyy", { locale: ptBR }) : "Até"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+                <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
+                Atualizar
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={!filtered.length}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar
+              </Button>
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Tabela de Logs */}
+        <AdminSection>
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : paginated.length === 0 ? (
+                <EmptyState
+                  icon={ScrollText}
+                  title="Nenhum registro"
+                  description={hasFilters ? "Tente ajustar os filtros." : "Não há logs em sync_logs."}
+                />
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>user_id</TableHead>
+                          <TableHead>action</TableHead>
+                          <TableHead>status</TableHead>
+                          <TableHead className="max-w-[200px]">message</TableHead>
+                          <TableHead className="w-12" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginated.map((r) => (
+                          <TableRow key={r.id}>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                              {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {r.user_id.slice(0, 8)}…
+                            </TableCell>
+                            <TableCell>{r.action}</TableCell>
+                            <TableCell>{statusBadge(r.status)}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                              {r.message ?? "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDetail(r)}
+                                aria-label="Ver detalhes"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between border-t px-4 py-3">
+                      <p className="text-sm text-muted-foreground">
+                        {(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, filtered.length)} de{" "}
+                        {filtered.length}
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          disabled={page <= 1}
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          disabled={page >= totalPages}
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </AdminSection>
+      </div>
+
+      {/* Dialog de Detalhes */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -403,6 +399,6 @@ export default function AdminLogs() {
           )}
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </AppLayout>
   );
 }
