@@ -1,4 +1,4 @@
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Settings, Info } from "lucide-react";
@@ -9,7 +9,7 @@ import { Settings, Info } from "lucide-react";
  */
 export default function AdminSettings() {
   return (
-    <AppLayout>
+    <AdminLayout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Configurações Globais
@@ -45,6 +45,6 @@ export default function AdminSettings() {
           </div>
         </CardHeader>
       </Card>
-    </AppLayout>
+    </AdminLayout>
   );
 }
