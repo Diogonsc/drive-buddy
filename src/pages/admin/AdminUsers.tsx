@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -78,7 +78,7 @@ export default function AdminUsers() {
   }, [rows, search]);
 
   return (
-    <AppLayout>
+    <AdminLayout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Gestão de Usuários
@@ -209,6 +209,6 @@ export default function AdminUsers() {
           )}
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </AdminLayout>
   );
 }
