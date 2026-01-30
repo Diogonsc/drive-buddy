@@ -29,16 +29,17 @@ import { ptBR } from "date-fns/locale";
  * Usa AppLayout global. Dados via user_roles e sync_logs (RLS permitido para admin).
  */
 export default function AdminDashboard() {
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
   const { data: roleCounts, isLoading: loadingRoles } = useQuery({
     queryKey: ["admin-role-counts"],
     queryFn: fetchRoleCounts,
   });
 
   const { data: logStats, isLoading: loadingStats } = useQuery({
-    queryKey: ["admin-log-stats-24h", since24h],
-    queryFn: () => fetchLogStats(since24h),
+    queryKey: ["admin-log-stats-24h"],
+    queryFn: () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      return fetchLogStats(since);
+    },
   });
 
   const { data: recentLogs, isLoading: loadingLogs } = useQuery({
