@@ -156,6 +156,20 @@ const Index = () => {
   }, [user]);
 
   const handleConnectWhatsApp = () => {
+    // Se já está pending ou connected, mostrar status ao invés de redirecionar
+    if (whatsappStatus === 'pending') {
+      toast.info(
+        "WhatsApp configurado! Aguardando primeira mensagem no webhook para confirmar conexão.",
+        { duration: 5000 }
+      );
+      return;
+    }
+    if (whatsappStatus === 'connected') {
+      // Se já está conectado, ir para gerenciar
+      navigate('/settings?tab=whatsapp');
+      return;
+    }
+    // Se desconectado ou erro, ir para configurar
     navigate('/settings?tab=whatsapp');
   };
 

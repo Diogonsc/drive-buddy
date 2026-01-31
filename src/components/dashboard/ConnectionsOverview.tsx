@@ -30,7 +30,7 @@ export function ConnectionsOverview({
           whatsappStatus === "connected"
             ? "Gerenciar"
             : whatsappStatus === "pending"
-              ? "Completar configuração"
+              ? "Verificar Status"
               : "Configurar WhatsApp"
         }
         onAction={onConnectWhatsApp}

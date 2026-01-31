@@ -14,6 +14,11 @@ const corsHeaders = {
 // TYPES
 // =====================================================
 
+interface MediaPayload {
+  id: string
+  mime_type: string
+}
+
 interface WhatsAppMessage {
   from: string
   id: string
@@ -23,11 +28,6 @@ interface WhatsAppMessage {
   video?: MediaPayload
   audio?: MediaPayload
   document?: MediaPayload & { filename?: string }
-}
-
-interface MediaPayload {
-  id: string
-  mime_type: string
 }
 
 interface WhatsAppWebhookPayload {
@@ -82,10 +82,18 @@ async function verifySignature(
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
 
-  return crypto.timingSafeEqual(
-    encoder.encode(signature),
-    encoder.encode(expected),
-  )
+  // Constant-time comparison to prevent timing attacks
+  if (signature.length !== expected.length) return false
+  
+  const sigBytes = encoder.encode(signature)
+  const expBytes = encoder.encode(expected)
+  
+  let result = 0
+  for (let i = 0; i < sigBytes.length; i++) {
+    result |= sigBytes[i] ^ expBytes[i]
+  }
+  
+  return result === 0
 }
 
 function getExtensionFromMime(mime: string): string {
@@ -187,7 +195,13 @@ Deno.serve(async req => {
 
           if (exists) continue
 
-          const media = message[message.type] as MediaPayload
+          const mediaType = message.type as 'image' | 'video' | 'audio' | 'document'
+          const media: MediaPayload | undefined = 
+            mediaType === 'image' ? message.image :
+            mediaType === 'video' ? message.video :
+            mediaType === 'audio' ? message.audio :
+            mediaType === 'document' ? message.document :
+            undefined
           if (!media) continue
 
           const contact = contacts?.find(c => c.wa_id === message.from)
