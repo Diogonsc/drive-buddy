@@ -29,7 +29,7 @@ const data = {
   },
   teams: [
     {
-      name: "DriveZap",
+      name: "Swiftwapdrive",
       logo: Cloud,
       plan: " WhatsApp → Google Drive",
     },

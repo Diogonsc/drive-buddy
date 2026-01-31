@@ -68,7 +68,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Coluna esquerda: descrição do DriveZap */}
+      {/* Coluna esquerda: descrição do Swiftwapdrive */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] bg-primary">
         <AuthBranding />
       </div>
@@ -81,7 +81,7 @@ export default function Signup() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg mb-3">
               <Cloud className="h-6 w-6 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-bold">DriveZap</h1>
+            <h1 className="text-xl font-bold">Swiftwapdrive</h1>
             <p className="text-sm text-muted-foreground">WhatsApp → Google Drive</p>
           </div>
 

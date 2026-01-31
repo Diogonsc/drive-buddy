@@ -36,7 +36,7 @@ export default function PrivacyPolicy() {
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none text-muted-foreground">
               <p>
-                O DriveZapSync ("nós", "nosso" ou "Serviço") está comprometido em proteger
+                O SwiftwapdriveSync ("nós", "nosso" ou "Serviço") está comprometido em proteger
                 sua privacidade. Esta Política de Privacidade explica como coletamos, usamos,
                 divulgamos e protegemos suas informações quando você usa nosso serviço de
                 sincronização de mídias entre WhatsApp e Google Drive.

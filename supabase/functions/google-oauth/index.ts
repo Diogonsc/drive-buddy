@@ -1,5 +1,5 @@
 // =====================================================
-// DriveZapSync - Google OAuth Edge Function
+// SwiftwapdriveSync - Google OAuth Edge Function
 // Gerencia autenticação OAuth 2.0 com Google Drive
 // =====================================================
 

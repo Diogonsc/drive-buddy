@@ -35,7 +35,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold tracking-tight text-foreground">
-                  DriveZap
+                  Swiftwapdrive
                 </h1>
                 <p className="text-xs text-muted-foreground -mt-0.5">
                   WhatsApp → Google Drive

@@ -36,7 +36,7 @@ export default function TermsOfService() {
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none text-muted-foreground">
               <p>
-                Ao acessar ou usar o DriveZapSync ("Serviço"), você concorda em estar
+                Ao acessar ou usar o SwiftwapdriveSync ("Serviço"), você concorda em estar
                 vinculado a estes Termos de Serviço. Se você não concordar com qualquer
                 parte destes termos, não poderá acessar ou usar o Serviço.
               </p>
@@ -49,7 +49,7 @@ export default function TermsOfService() {
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none text-muted-foreground">
               <p>
-                O DriveZapSync é um serviço que automatiza a sincronização de arquivos
+                O SwiftwapdriveSync é um serviço que automatiza a sincronização de arquivos
                 de mídia (imagens, vídeos, áudios e documentos) recebidos via WhatsApp
                 Business para o Google Drive do usuário. O serviço:
               </p>
@@ -128,7 +128,7 @@ export default function TermsOfService() {
             <CardContent className="prose prose-sm max-w-none text-muted-foreground">
               <p>
                 O Serviço e seu conteúdo original, recursos e funcionalidades são de
-                propriedade do DriveZapSync e estão protegidos por direitos autorais,
+                propriedade do SwiftwapdriveSync e estão protegidos por direitos autorais,
                 marcas registradas e outras leis de propriedade intelectual.
               </p>
               <p className="mt-4">
@@ -172,7 +172,7 @@ export default function TermsOfService() {
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none text-muted-foreground">
               <p>
-                Você concorda em indenizar e isentar o DriveZapSync de quaisquer
+                Você concorda em indenizar e isentar o SwiftwapdriveSync de quaisquer
                 reivindicações, danos, perdas ou despesas decorrentes de:
               </p>
               <ul className="list-disc pl-6 space-y-2">

@@ -25,7 +25,7 @@ export function AuthBranding() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-primary-foreground lg:text-3xl">
-              DriveZap
+              Swiftwapdrive
             </h1>
             <p className="text-sm text-primary-foreground/80 lg:text-base">
               WhatsApp → Google Drive
