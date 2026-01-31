@@ -5,6 +5,7 @@ import { ConnectionsOverview } from "@/components/dashboard/ConnectionsOverview"
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { FlowVisualization } from "@/components/dashboard/FlowVisualization";
+import { WhatsAppStatusDetails } from "@/components/dashboard/WhatsAppStatusDetails";
 import { LogEntry } from "@/components/ui/ActivityLog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,9 +43,12 @@ const Index = () => {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [connection, setConnection] = useState<{
     whatsapp_phone_number_id?: string;
+    whatsapp_webhook_verify_token?: string;
+    whatsapp_connected_at?: string;
     google_status?: string;
     whatsapp_status?: string;
   } | null>(null);
+  const [lastMediaReceivedAt, setLastMediaReceivedAt] = useState<string | null>(null);
 
   // Carregar conexões e status
   useEffect(() => {
@@ -54,7 +58,7 @@ const Index = () => {
       try {
         const { data, error } = await supabase
           .from('connections')
-          .select('whatsapp_status, whatsapp_phone_number_id, google_status, google_connected_at')
+          .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_webhook_verify_token, whatsapp_connected_at, google_status, google_connected_at')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -64,6 +68,19 @@ const Index = () => {
           setWhatsappStatus((data.whatsapp_status as any) || 'disconnected');
           setGoogleDriveStatus((data.google_status as any) || 'disconnected');
           setConnection(data);
+        }
+
+        // Buscar última mensagem de mídia recebida
+        const { data: lastMedia } = await supabase
+          .from('media_files')
+          .select('received_at')
+          .eq('user_id', user.id)
+          .order('received_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastMedia) {
+          setLastMediaReceivedAt(lastMedia.received_at);
         }
       } catch (error) {
         console.error('Error loading connections:', error);
@@ -156,12 +173,9 @@ const Index = () => {
   }, [user]);
 
   const handleConnectWhatsApp = () => {
-    // Se já está pending ou connected, mostrar status ao invés de redirecionar
+    // Se está pending, verificar/atualizar o status (pode ter mudado após receber primeira mensagem)
     if (whatsappStatus === 'pending') {
-      toast.info(
-        "WhatsApp configurado! Aguardando primeira mensagem no webhook para confirmar conexão.",
-        { duration: 5000 }
-      );
+      handleRefreshWhatsAppStatus();
       return;
     }
     if (whatsappStatus === 'connected') {
@@ -173,18 +187,55 @@ const Index = () => {
     navigate('/settings?tab=whatsapp');
   };
 
+  const handleRefreshWhatsAppStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('connections')
+        .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_webhook_verify_token, whatsapp_connected_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setWhatsappStatus((data.whatsapp_status as any) || 'disconnected');
+        setConnection(prev => ({ ...prev, ...data }));
+      }
+
+      // Buscar última mensagem
+      const { data: lastMedia } = await supabase
+        .from('media_files')
+        .select('received_at')
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastMedia) {
+        setLastMediaReceivedAt(lastMedia.received_at);
+      }
+
+      toast.success("Status atualizado!");
+    } catch (error) {
+      console.error('Error refreshing WhatsApp status:', error);
+      toast.error("Erro ao atualizar status");
+    }
+  };
+
   const handleConnectGoogleDrive = async () => {
     if (!user) return;
 
     try {
       // Verificar se já tem credenciais configuradas
-      const { data: connection } = await supabase
+      const { data: connData } = await supabase
         .from('connections')
         .select('google_client_id, google_client_secret')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (!connection?.google_client_id || !connection?.google_client_secret) {
+      if (!connData?.google_client_id || !connData?.google_client_secret) {
         toast.error("Configure as credenciais do Google primeiro nas Configurações");
         navigate('/settings?tab=google');
         return;
@@ -332,6 +383,21 @@ const Index = () => {
           onConnectGoogleDrive={handleConnectGoogleDrive}
         />
       </div>
+
+      {/* WhatsApp Status Details - Mostrar quando pending ou connected */}
+      {(whatsappStatus === "pending" || whatsappStatus === "connected") && (
+        <div className="mb-8 animate-fade-in" style={{ animationDelay: "150ms" }}>
+          <WhatsAppStatusDetails
+            status={whatsappStatus}
+            phoneNumberId={connection?.whatsapp_phone_number_id}
+            webhookVerifyToken={connection?.whatsapp_webhook_verify_token}
+            connectedAt={connection?.whatsapp_connected_at || undefined}
+            lastMessageAt={lastMediaReceivedAt || undefined}
+            onRefresh={handleRefreshWhatsAppStatus}
+            isRefreshing={isRefreshing}
+          />
+        </div>
+      )}
 
       {/* Metrics */}
       <div className="mb-8 animate-fade-in" style={{ animationDelay: "200ms" }}>

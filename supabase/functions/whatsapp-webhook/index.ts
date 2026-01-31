@@ -233,6 +233,17 @@ Deno.serve(async req => {
 
           if (!mediaFile) continue
 
+          // Marcar conexão como confirmada na primeira mensagem recebida
+          await supabase
+            .from('connections')
+            .update({
+              whatsapp_status: 'connected',
+              whatsapp_connected_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', connection.user_id)
+            .eq('whatsapp_status', 'pending')
+
           // 🔄 Async processing (download + Drive)
           await supabase.functions.invoke('process-media', {
             body: {
