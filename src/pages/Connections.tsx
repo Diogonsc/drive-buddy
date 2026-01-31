@@ -170,10 +170,10 @@ export default function Connections() {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => navigate('/settings')}
+              onClick={() => navigate('/settings?tab=whatsapp')}
             >
               <Settings className="h-4 w-4 mr-2" />
-              {whatsappStatus === 'connected' ? 'Gerenciar' : 'Configurar'}
+              {whatsappStatus === 'connected' ? 'Gerenciar' : whatsappStatus === 'pending' ? 'Completar configuração' : 'Configurar'}
             </Button>
           </CardContent>
         </Card>
@@ -202,9 +202,9 @@ export default function Connections() {
             )}
             <div className="flex gap-2">
               <Button 
-                variant="outline" 
+                variant="outline"
                 className="flex-1"
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/settings?tab=google')}
               >
                 <Settings className="h-4 w-4 mr-2" />
                 {googleStatus === 'connected' ? 'Gerenciar' : 'Configurar'}

@@ -49,14 +49,19 @@ supabase functions deploy google-oauth
 
 ### 4. Configurar Variáveis de Ambiente
 
-No dashboard do Supabase, vá para **Settings > Edge Functions** e adicione:
+No dashboard do Supabase, vá para **Settings > Edge Functions > Secrets** e adicione:
 
 ```
 # Já configuradas automaticamente pelo Supabase:
 # SUPABASE_URL
 # SUPABASE_SERVICE_ROLE_KEY
 # SUPABASE_ANON_KEY
+
+# WhatsApp (obrigatório para o webhook POST):
+WHATSAPP_APP_SECRET=<App Secret do seu app no Meta (Configurações do app → Básico)>
 ```
+
+Sem `WHATSAPP_APP_SECRET`, o webhook rejeita todas as requisições POST do Meta (erro 403).
 
 ### 5. Configurar Webhook no Meta Business
 
@@ -64,8 +69,8 @@ No dashboard do Supabase, vá para **Settings > Edge Functions** e adicione:
 2. Vá para seu App > WhatsApp > Configuration
 3. Configure o Webhook:
    - **Callback URL**: `https://SEU_PROJECT.supabase.co/functions/v1/whatsapp-webhook`
-   - **Verify Token**: O mesmo que você configurar na tabela `connections`
-4. Assine os campos: `messages`, `message_template_status_update`
+   - **Verify Token**: O mesmo valor que o usuário define em Configurações → WhatsApp → Verify Token (e salvo em `connections.whatsapp_webhook_verify_token`)
+4. Assine o campo **messages** (obrigatório para receber mídias)
 
 ### 6. Configurar Google Cloud Console
 

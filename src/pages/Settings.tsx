@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,11 +23,24 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
-  Loader2
+  Loader2,
+  Clock
 } from "lucide-react";
+
+const VALID_TABS = ['whatsapp', 'google', 'general'] as const;
+type SettingsTab = (typeof VALID_TABS)[number];
 
 export default function Settings() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (VALID_TABS.includes(searchParams.get('tab') as SettingsTab)
+    ? searchParams.get('tab')
+    : 'whatsapp') as SettingsTab;
+
+  const setActiveTab = (tab: string) => {
+    setSearchParams({ tab }, { replace: true });
+  };
+
   const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
   const [showGoogleSecret, setShowGoogleSecret] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,7 +92,7 @@ export default function Settings() {
           setWhatsappConfig({
             phoneNumberId: connection.whatsapp_phone_number_id || '',
             accessToken: connection.whatsapp_access_token || '',
-            webhookVerifyToken: '',
+            webhookVerifyToken: connection.whatsapp_webhook_verify_token || '',
           });
           setGoogleConfig({
             clientId: connection.google_client_id || '',
@@ -131,6 +146,7 @@ export default function Settings() {
           user_id: user.id,
           whatsapp_phone_number_id: whatsappConfig.phoneNumberId,
           whatsapp_access_token: whatsappConfig.accessToken,
+          whatsapp_webhook_verify_token: whatsappConfig.webhookVerifyToken || null,
           whatsapp_status: whatsappConfig.phoneNumberId && whatsappConfig.accessToken ? 'pending' : 'disconnected',
         }, { onConflict: 'user_id' });
 
@@ -268,7 +284,7 @@ export default function Settings() {
         </p>
       </div>
 
-      <Tabs defaultValue="whatsapp" className="space-y-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
         <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="whatsapp" className="gap-2">
             <MessageSquare className="h-4 w-4" />
@@ -286,6 +302,15 @@ export default function Settings() {
 
         {/* WhatsApp Configuration */}
         <TabsContent value="whatsapp" className="space-y-6">
+          {connectionStatus.whatsapp === 'pending' && (
+            <Alert className="animate-fade-in border-amber-500/50 bg-amber-500/10">
+              <Clock className="h-4 w-4" />
+              <AlertTitle>Próximo passo: configurar o webhook no Meta</AlertTitle>
+              <AlertDescription>
+                Suas credenciais foram salvas. Para ativar o recebimento de mensagens, configure o webhook no painel do Meta for Developers (WhatsApp → Configuração → Webhook) usando a Callback URL e o Verify Token exibidos abaixo.
+              </AlertDescription>
+            </Alert>
+          )}
           <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -305,6 +330,11 @@ export default function Settings() {
                     <>
                       <CheckCircle2 className="h-3 w-3 text-primary" />
                       Conectado
+                    </>
+                  ) : connectionStatus.whatsapp === 'pending' ? (
+                    <>
+                      <Clock className="h-3 w-3" />
+                      Pendente
                     </>
                   ) : (
                     <>
@@ -357,6 +387,22 @@ export default function Settings() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="webhookVerifyToken">Verify Token (Webhook)</Label>
+                <Input
+                  id="webhookVerifyToken"
+                  type="text"
+                  placeholder="Ex: meu_token_secreto_123"
+                  value={whatsappConfig.webhookVerifyToken}
+                  onChange={(e) =>
+                    setWhatsappConfig({ ...whatsappConfig, webhookVerifyToken: e.target.value })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use o mesmo valor em &quot;Verify token&quot; no painel do Meta (WhatsApp → Configuração → Webhook). Necessário para validar o webhook.
+                </p>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button onClick={handleSaveWhatsApp} disabled={isSaving}>
                   {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -375,7 +421,7 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="text-base">Configuração do Webhook</CardTitle>
               <CardDescription>
-                Configure estes endpoints no painel do Meta Business
+                Configure estes endpoints no painel do Meta Business (WhatsApp → Configuração → Webhook)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -386,10 +432,19 @@ export default function Settings() {
                 </code>
               </div>
               <div className="rounded-lg bg-muted p-4">
-                <Label className="text-xs text-muted-foreground">Campos para Assinar</Label>
+                <Label className="text-xs text-muted-foreground">Verify token</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use exatamente o mesmo valor que você definiu no campo &quot;Verify Token&quot; acima.
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted p-4">
+                <Label className="text-xs text-muted-foreground">Campos para assinar</Label>
                 <code className="block mt-1 text-sm font-mono text-foreground">
-                  messages, message_template_status_update
+                  messages
                 </code>
+                <p className="text-xs text-muted-foreground mt-1">
+                  O campo <code>messages</code> é obrigatório para receber mídias. Em produção, defina a variável <code>WHATSAPP_APP_SECRET</code> (App Secret do Meta) nas Edge Functions do Supabase para validar assinaturas.
+                </p>
               </div>
             </CardContent>
           </Card>

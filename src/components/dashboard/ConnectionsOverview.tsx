@@ -26,7 +26,13 @@ export function ConnectionsOverview({
         icon={MessageSquare}
         iconColor="text-emerald-500"
         status={whatsappStatus}
-        actionLabel={whatsappStatus === "connected" ? "Gerenciar" : "Conectar WhatsApp"}
+        actionLabel={
+          whatsappStatus === "connected"
+            ? "Gerenciar"
+            : whatsappStatus === "pending"
+              ? "Completar configuração"
+              : "Configurar WhatsApp"
+        }
         onAction={onConnectWhatsApp}
         details={
           whatsappStatus === "connected" && whatsappNumber
