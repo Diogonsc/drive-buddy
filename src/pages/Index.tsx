@@ -49,6 +49,7 @@ const Index = () => {
     whatsapp_status?: string;
   } | null>(null);
   const [lastMediaReceivedAt, setLastMediaReceivedAt] = useState<string | null>(null);
+  const [reprocessingId, setReprocessingId] = useState<string | null>(null);
 
   // Carregar conexões e status
   useEffect(() => {
@@ -189,8 +190,13 @@ const Index = () => {
 
   const handleRefreshWhatsAppStatus = async () => {
     if (!user) return;
-    
+    setIsRefreshing(true);
+
     try {
+      // Chama a API para validar credenciais na Meta e atualizar status no banco
+      const { data: verifyData } = await supabase.functions.invoke('whatsapp-verify-status');
+
+      // Refetch da connection para obter o status atualizado
       const { data, error } = await supabase
         .from('connections')
         .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_webhook_verify_token, whatsapp_connected_at')
@@ -217,10 +223,18 @@ const Index = () => {
         setLastMediaReceivedAt(lastMedia.received_at);
       }
 
-      toast.success("Status atualizado!");
+      if (verifyData?.success) {
+        toast.success(verifyData.verified_name || verifyData.display_phone_number ? `Conectado: ${verifyData.verified_name || verifyData.display_phone_number}` : "WhatsApp conectado com sucesso!");
+      } else if (verifyData?.error) {
+        toast.error(verifyData.error);
+      } else {
+        toast.success("Status atualizado!");
+      }
     } catch (error) {
       console.error('Error refreshing WhatsApp status:', error);
       toast.error("Erro ao atualizar status");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -324,6 +338,35 @@ const Index = () => {
     navigate('/logs');
   };
 
+  const handleReprocess = async (mediaFileId: string) => {
+    setReprocessingId(mediaFileId);
+    try {
+      const { data: reprocessData, error: reprocessError } = await supabase.functions.invoke('reprocess-media', {
+        body: { mediaFileId },
+      });
+      if (reprocessError) {
+        toast.error(reprocessError.message || "Erro ao reprocessar");
+        return;
+      }
+      if (!reprocessData?.success) {
+        toast.error(reprocessData?.message || "Erro ao reprocessar.");
+        return;
+      }
+      const msg = reprocessData?.message || "Arquivo reprocessado com sucesso.";
+      if (msg.includes("já em processamento")) {
+        toast.info("Arquivo já está em processamento.");
+      } else {
+        toast.success("Arquivo reprocessado e enviado ao Drive com sucesso.");
+      }
+      handleRefresh();
+    } catch (err) {
+      console.error("Reprocess error:", err);
+      toast.error("Erro ao reprocessar");
+    } finally {
+      setReprocessingId(null);
+    }
+  };
+
   // Função auxiliar para formatar bytes
   function formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';
@@ -411,6 +454,8 @@ const Index = () => {
           entries={logEntries}
           onRefresh={handleRefresh}
           onViewAll={handleViewAll}
+          onReprocess={handleReprocess}
+          reprocessingId={reprocessingId}
           isLoading={isRefreshing}
         />
       </div>

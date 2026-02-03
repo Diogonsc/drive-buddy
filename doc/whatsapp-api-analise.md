@@ -84,13 +84,13 @@ O projeto já possui webhook (`whatsapp-webhook`), processamento de mídia (`pro
 
 ---
 
-## Checklist pós-correção
+## Checklist pós-correção (implementado)
 
-- [ ] Definir `WHATSAPP_APP_SECRET` nas Edge Functions do Supabase.
-- [ ] Incluir campo “Verify Token” na aba WhatsApp (Settings), salvar em `whatsapp_webhook_verify_token`.
-- [ ] No Meta: Configurar webhook com a Callback URL do Supabase e o mesmo Verify Token definido no app.
-- [ ] Corrigir `process-media`: buscar connection por `user_id`; usar `subscriptions` e `files_used_current_month`; usar status `failed` (ou adicionar `permanent_failed` ao enum).
-- [ ] (Opcional) Teste de conexão real chamando a API do WhatsApp.
-- [ ] (Opcional) Documentar no README: App Secret, Verify Token e passos no Meta.
+- [x] Definir `WHATSAPP_APP_SECRET` nas Edge Functions do Supabase.
+- [x] Incluir campo “Verify Token” na aba WhatsApp (Settings), salvar em `whatsapp_webhook_verify_token`.
+- [x] No Meta: Configurar webhook com a Callback URL do Supabase e o mesmo Verify Token definido no app.
+- [x] Corrigir `process-media`: buscar connection por `user_id`; usar `subscriptions` e `files_used_current_month`; usar status `failed` e `is_permanent_failure`.
+- [x] Teste de conexão real: Edge Function `whatsapp-test-connection` + botão "Testar Conexão" em Settings.
+- [x] Documentar no README do Supabase: App Secret, Verify Token, variáveis e passos no Meta.
 
 Depois dessas alterações, o fluxo “mensagem com mídia no WhatsApp → webhook → media_files → process-media → download → Drive” deve funcionar de forma consistente com a API oficial do WhatsApp.

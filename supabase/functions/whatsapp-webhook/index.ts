@@ -54,12 +54,12 @@ interface WhatsAppWebhookPayload {
 async function verifySignature(
   req: Request,
   rawBody: string,
-): Promise<boolean> {
+): Promise<{ valid: boolean; missingSecret?: boolean }> {
   const signature = req.headers.get('x-hub-signature-256')
-  if (!signature) return false
+  if (!signature) return { valid: false }
 
   const secret = Deno.env.get('WHATSAPP_APP_SECRET')
-  if (!secret) throw new Error('Missing WHATSAPP_APP_SECRET')
+  if (!secret) return { valid: false, missingSecret: true }
 
   const encoder = new TextEncoder()
   const key = await crypto.subtle.importKey(
@@ -92,8 +92,8 @@ async function verifySignature(
   for (let i = 0; i < sigBytes.length; i++) {
     result |= sigBytes[i] ^ expBytes[i]
   }
-  
-  return result === 0
+
+  return { valid: result === 0 }
 }
 
 function getExtensionFromMime(mime: string): string {
@@ -134,7 +134,7 @@ Deno.serve(async req => {
     const token = url.searchParams.get('hub.verify_token')
     const challenge = url.searchParams.get('hub.challenge')
 
-    if (mode === 'subscribe') {
+    if (mode === 'subscribe' && token != null && challenge != null) {
       const { data } = await supabase
         .from('connections')
         .select('user_id')
@@ -142,7 +142,10 @@ Deno.serve(async req => {
         .maybeSingle()
 
       if (data) {
-        return new Response(challenge, { status: 200 })
+        return new Response(challenge, {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        })
       }
     }
 
@@ -155,9 +158,16 @@ Deno.serve(async req => {
   if (req.method === 'POST') {
     const rawBody = await req.text()
 
-    // 🔐 Signature validation
-    const validSignature = await verifySignature(req, rawBody)
-    if (!validSignature) {
+    // 🔐 Signature validation (WHATSAPP_APP_SECRET obrigatório em produção)
+    const sigResult = await verifySignature(req, rawBody)
+    if (sigResult.missingSecret) {
+      console.error('WHATSAPP_APP_SECRET not set in Edge Function secrets')
+      return new Response(
+        JSON.stringify({ error: 'Server misconfiguration: WHATSAPP_APP_SECRET required' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    if (!sigResult.valid) {
       return new Response('Invalid signature', { status: 403 })
     }
 
@@ -244,13 +254,10 @@ Deno.serve(async req => {
             .eq('user_id', connection.user_id)
             .eq('whatsapp_status', 'pending')
 
-          // 🔄 Async processing (download + Drive)
-          await supabase.functions.invoke('process-media', {
-            body: {
-              mediaFileId: mediaFile.id,
-              accessToken: connection.whatsapp_access_token,
-            },
-          })
+          // 🔄 Processamento assíncrono (não aguardar — evita timeout do webhook no Meta)
+          supabase.functions.invoke('process-media', {
+            body: { mediaFileId: mediaFile.id },
+          }).catch(err => console.error('process-media invoke error:', err))
         }
       }
     }

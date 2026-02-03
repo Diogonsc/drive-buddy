@@ -65,7 +65,7 @@ async function uploadToGoogleDrive(token: string, file: any): Promise<string> {
     console.error("[UPLOAD ERROR]", json);
     throw new Error("Erro no upload para Google Drive");
   }
-  return json.id; // Drive File ID
+  return json.id;
 }
 
 /* =========================
@@ -82,7 +82,7 @@ serve(async (req) => {
     mediaFileId = body.mediaFileId;
     if (!mediaFileId) throw new Error("mediaFileId é obrigatório");
 
-    console.log("[START] process-media", mediaFileId);
+    console.log("[START] reprocess-media", mediaFileId);
 
     // 1️⃣ BUSCA ARQUIVO
     const { data: media, error: fetchError } = await supabase
@@ -93,12 +93,7 @@ serve(async (req) => {
 
     if (fetchError || !media) throw new Error("Arquivo não encontrado");
 
-    // 2️⃣ LOCK
-    if (media.status === "processing") {
-      console.warn("[LOCK] Arquivo já está em processamento");
-      return new Response(JSON.stringify({ success: true, message: "Arquivo já em processamento" }), { headers: corsHeaders });
-    }
-
+    // 2️⃣ LOCK — em reprocessamento permitimos seguir mesmo se estiver "processing" (pode estar travado)
     await supabase.from("media_files").update({ status: "processing", error_message: null }).eq("id", mediaFileId);
     console.log("[LOCK] Marcado como processing");
 
@@ -130,8 +125,8 @@ serve(async (req) => {
     }
     if (!token) throw new Error("Token do Google não encontrado. Conecte o Google Drive nas configurações.");
 
-    const expiresAt = connection.google_token_expires_at ? new Date(connection.google_token_expires_at).getTime() : 0;
-    if (expiresAt && expiresAt - Date.now() < TOKEN_EXPIRY_BUFFER_MS && connection.google_refresh_token) {
+    const expiresAtTs = connection.google_token_expires_at ? new Date(connection.google_token_expires_at).getTime() : 0;
+    if (expiresAtTs && expiresAtTs - Date.now() < TOKEN_EXPIRY_BUFFER_MS && connection.google_refresh_token) {
       const refreshed = await refreshGoogleAccessToken(
         connection.google_client_id!,
         connection.google_client_secret!,
@@ -146,7 +141,7 @@ serve(async (req) => {
     console.log("[AUTH] Token Google obtido");
 
     // 4️⃣ UPLOAD
-    console.log("[UPLOAD] Enviando para Google Drive");
+    console.log("[UPLOAD] Reprocessando para Google Drive");
     const driveFileId = await uploadToGoogleDrive(token, media);
     console.log("[UPLOAD] Sucesso:", driveFileId);
 
@@ -159,12 +154,12 @@ serve(async (req) => {
       error_message: null,
     }).eq("id", mediaFileId);
 
-    console.log("[SUCCESS] Arquivo finalizado");
+    console.log("[SUCCESS] Arquivo reprocessado com sucesso");
 
-    return new Response(JSON.stringify({ success: true, message: "Arquivo processado com sucesso" }), { headers: corsHeaders });
+    return new Response(JSON.stringify({ success: true, message: "Arquivo reprocessado com sucesso" }), { headers: corsHeaders });
 
   } catch (err) {
-    console.error("[ERROR]", err);
+    console.error("[ERROR] reprocess-media", err);
 
     if (mediaFileId) {
       await supabase.from("media_files").update({ status: "failed", error_message: String(err) }).eq("id", mediaFileId);
@@ -173,6 +168,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: false, message: String(err) }), { headers: corsHeaders, status: 500 });
   } finally {
     const duration = Date.now() - startTime;
-    console.log(`[END] process-media (${duration}ms)`);
+    console.log(`[END] reprocess-media (${duration}ms)`);
   }
 });

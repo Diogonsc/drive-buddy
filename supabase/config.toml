@@ -17,6 +17,18 @@ verify_jwt = false
 [functions.process-media]
 verify_jwt = false
 
+# WhatsApp Test Connection - Autenticado (testa credenciais na Meta)
+[functions.whatsapp-test-connection]
+verify_jwt = true
+
+# WhatsApp Verify Status - Autenticado (valida credenciais salvas e atualiza status)
+[functions.whatsapp-verify-status]
+verify_jwt = true
+
+# Reprocess Media - Autenticado (reprocessa arquivo pending/failed)
+[functions.reprocess-media]
+verify_jwt = true
+
 # Google OAuth - Requer autenticação
 [functions.google-oauth]
 verify_jwt = false

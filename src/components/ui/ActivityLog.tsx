@@ -7,8 +7,10 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock,
+  RefreshCw,
   LucideIcon
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type MediaType = "image" | "video" | "audio" | "document";
 type LogStatus = "success" | "error" | "pending";
@@ -26,6 +28,8 @@ interface LogEntry {
 interface ActivityLogProps {
   entries: LogEntry[];
   className?: string;
+  onReprocess?: (entryId: string) => void;
+  reprocessingId?: string | null;
 }
 
 const mediaIcons: Record<MediaType, LucideIcon> = {
@@ -68,7 +72,7 @@ function formatRelativeTime(date: Date): string {
   return `${days}d atrás`;
 }
 
-export function ActivityLog({ entries, className }: ActivityLogProps) {
+export function ActivityLog({ entries, className, onReprocess, reprocessingId }: ActivityLogProps) {
   if (entries.length === 0) {
     return (
       <div className={cn("flex flex-col items-center justify-center py-12 text-center", className)}>
@@ -114,7 +118,7 @@ export function ActivityLog({ entries, className }: ActivityLogProps) {
               </p>
             </div>
 
-            {/* Status & Time */}
+            {/* Status, Reprocessar & Time */}
             <div className="flex items-center gap-3 shrink-0">
               <div className="flex items-center gap-1.5">
                 <StatusIcon className={cn("h-4 w-4", statusConfig[entry.status].color)} />
@@ -122,6 +126,24 @@ export function ActivityLog({ entries, className }: ActivityLogProps) {
                   {statusConfig[entry.status].label}
                 </span>
               </div>
+              {(entry.status === "pending" || entry.status === "error") && onReprocess && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => onReprocess(entry.id)}
+                  disabled={reprocessingId === entry.id}
+                >
+                  {reprocessingId === entry.id ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                      Reprocessar
+                    </>
+                  )}
+                </Button>
+              )}
               <span className="text-xs text-muted-foreground w-14 text-right">
                 {formatRelativeTime(entry.timestamp)}
               </span>

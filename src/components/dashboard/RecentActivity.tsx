@@ -6,10 +6,12 @@ interface RecentActivityProps {
   entries: LogEntry[];
   onRefresh: () => void;
   onViewAll: () => void;
+  onReprocess?: (entryId: string) => void;
+  reprocessingId?: string | null;
   isLoading?: boolean;
 }
 
-export function RecentActivity({ entries, onRefresh, onViewAll, isLoading }: RecentActivityProps) {
+export function RecentActivity({ entries, onRefresh, onViewAll, onReprocess, reprocessingId, isLoading }: RecentActivityProps) {
   return (
     <div className="rounded-xl border border-border bg-card shadow-soft">
       {/* Header */}
@@ -37,7 +39,11 @@ export function RecentActivity({ entries, onRefresh, onViewAll, isLoading }: Rec
 
       {/* Content */}
       <div className="p-2">
-        <ActivityLog entries={entries.slice(0, 8)} />
+        <ActivityLog
+          entries={entries.slice(0, 8)}
+          onReprocess={onReprocess}
+          reprocessingId={reprocessingId}
+        />
       </div>
     </div>
   );

@@ -4,16 +4,16 @@
 
 ### 1. Criar Tabelas
 
-Execute o arquivo `migrations/001_create_tables.sql` no **SQL Editor** do Supabase.
+Execute o arquivo `sql/001_create_tables.sql` no **SQL Editor** do Supabase.
 
 Este script cria:
-- Enums: `app_role`, `sync_status`, `media_type`, `connection_status`
-- Tabelas: `user_roles`, `connections`, `user_settings`, `media_files`, `sync_logs`
+- Enums: `app_role`, `sync_status`, `media_type`, `connection_status`, `plan_type`
+- Tabelas: `user_roles`, `connections`, `user_settings`, `subscriptions`, `media_files`, `sync_logs`
 - Triggers para auto-criar configurações para novos usuários
 
 ### 2. Configurar RLS (Row Level Security)
 
-Execute o arquivo `migrations/002_rls_policies.sql` no **SQL Editor** do Supabase.
+Execute o arquivo `sql/002_rls_policies.sql` no **SQL Editor** do Supabase.
 
 Este script configura:
 - Função `has_role()` para verificação de permissões
@@ -37,6 +37,9 @@ supabase link --project-ref SEU_PROJECT_REF
 # Deploy das funções
 supabase functions deploy whatsapp-webhook
 supabase functions deploy process-media
+supabase functions deploy whatsapp-test-connection
+supabase functions deploy whatsapp-verify-status
+supabase functions deploy reprocess-media
 supabase functions deploy google-oauth
 ```
 
@@ -44,33 +47,41 @@ supabase functions deploy google-oauth
 
 1. Vá para **Edge Functions** no dashboard do Supabase
 2. Clique em **New Function**
-3. Copie o conteúdo de cada arquivo `.ts` da pasta `functions/`
-4. Configure as variáveis de ambiente necessárias
+3. Copie o conteúdo de cada arquivo `index.ts` da pasta `functions/`
+4. Configure as variáveis de ambiente (Secrets) necessárias
 
-### 4. Configurar Variáveis de Ambiente
+### 4. Configurar Variáveis de Ambiente (Secrets)
 
-No dashboard do Supabase, vá para **Settings > Edge Functions > Secrets** e adicione:
+No dashboard do Supabase: **Project Settings > Edge Functions > Secrets**. Adicione:
 
-```
-# Já configuradas automaticamente pelo Supabase:
-# SUPABASE_URL
-# SUPABASE_SERVICE_ROLE_KEY
-# SUPABASE_ANON_KEY
+| Variável | Obrigatório | Descrição |
+|----------|-------------|-----------|
+| `SUPABASE_ANON_KEY` | Sim (reprocess-media, whatsapp-verify-status) | **Chave anon** do projeto: Project Settings → API → anon public. Usada para validar JWT do usuário (`getUser()`); **nunca** use SERVICE_ROLE_KEY para auth. |
+| `WHATSAPP_APP_SECRET` | Sim (webhook POST) | **App Secret** do app no Meta: [developers.facebook.com](https://developers.facebook.com) → Seu App → Configurações do app → Básico → Chave secreta do app. Usado para validar a assinatura `x-hub-signature-256` nas requisições POST do webhook. Sem ela, o webhook retorna **503** (Server misconfiguration). |
+| `GOOGLE_CLIENT_ID` | Sim (process-media) | Client ID do OAuth 2.0 no Google Cloud Console (renovação de token no process-media). |
+| `GOOGLE_CLIENT_SECRET` | Sim (process-media) | Client Secret do OAuth 2.0 no Google Cloud Console. |
 
-# WhatsApp (obrigatório para o webhook POST):
-WHATSAPP_APP_SECRET=<App Secret do seu app no Meta (Configurações do app → Básico)>
-```
+- **Verificação GET do webhook** não usa `WHATSAPP_APP_SECRET`; apenas o **Verify Token** (igual ao salvo em `connections.whatsapp_webhook_verify_token`).
+- Em produção, **nunca** deixe `WHATSAPP_APP_SECRET` em branco, para evitar aceitar POSTs não assinados pelo Meta.
 
-Sem `WHATSAPP_APP_SECRET`, o webhook rejeita todas as requisições POST do Meta (erro 403).
+### 5. Configurar WhatsApp Cloud API (Meta)
 
-### 5. Configurar Webhook no Meta Business
+1. **Criar app e adicionar número**  
+   - Acesse [Meta for Developers](https://developers.facebook.com/) → **My Apps** → crie ou selecione um app.  
+   - Menu **WhatsApp** → **API Setup**. Em **Step 5: Add a phone number**, adicione um número (ou use o número de teste).  
+   - Anote o **Phone number ID** e gere um **Access Token** (temporário ou permanente) em **API Setup**.
 
-1. Acesse [Meta for Developers](https://developers.facebook.com/)
-2. Vá para seu App > WhatsApp > Configuration
-3. Configure o Webhook:
-   - **Callback URL**: `https://SEU_PROJECT.supabase.co/functions/v1/whatsapp-webhook`
-   - **Verify Token**: O mesmo valor que o usuário define em Configurações → WhatsApp → Verify Token (e salvo em `connections.whatsapp_webhook_verify_token`)
-4. Assine o campo **messages** (obrigatório para receber mídias)
+2. **App Secret**  
+   - **Configurações do app** → **Básico** → **Chave secreta do app**. Use esse valor em `WHATSAPP_APP_SECRET` nas Edge Functions.
+
+3. **Webhook no Meta**  
+   - No mesmo app: **WhatsApp** → **Configuration** → **Webhook** → **Edit**.  
+   - **Callback URL**: `https://SEU_PROJECT_REF.supabase.co/functions/v1/whatsapp-webhook`  
+   - **Verify Token**: Defina um valor secreto (ex: `meu_token_webhook_123`). O **mesmo** valor deve ser informado pelo usuário em **Configurações → WhatsApp → Verify Token** no app e salvo em `connections.whatsapp_webhook_verify_token`.  
+   - Ao clicar em **Verify and save**, o Meta envia um GET ao webhook; a função valida o token e responde com `hub.challenge`.
+
+4. **Campos do webhook**  
+   - Assine pelo menos o campo **messages** (obrigatório para receber mídias e mensagens).
 
 ### 6. Configurar Google Cloud Console
 

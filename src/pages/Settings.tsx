@@ -221,15 +221,44 @@ export default function Settings() {
   };
 
   const handleTestWhatsApp = async () => {
-    toast.info("Testando conexão com WhatsApp...");
-    // In production, this would call the webhook edge function
-    setTimeout(() => {
-      if (whatsappConfig.phoneNumberId && whatsappConfig.accessToken) {
-        toast.success("Credenciais parecem válidas!");
-      } else {
-        toast.error("Preencha as credenciais primeiro");
+    if (!whatsappConfig.phoneNumberId?.trim() || !whatsappConfig.accessToken?.trim()) {
+      toast.error("Preencha Phone Number ID e Access Token primeiro");
+      return;
+    }
+    toast.info("Testando conexão com a API do WhatsApp...");
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-test-connection', {
+        body: {
+          phoneNumberId: whatsappConfig.phoneNumberId.trim(),
+          accessToken: whatsappConfig.accessToken.trim(),
+        },
+      });
+      if (error) {
+        toast.error(error.message || "Erro ao testar conexão");
+        return;
       }
-    }, 1000);
+      if (data?.success) {
+        const name = data.verified_name || data.display_phone_number;
+        toast.success(name ? `Conexão OK: ${name}` : "Credenciais válidas! Conexão com a API OK.");
+        // Atualiza status para connected no banco para refletir na Dashboard
+        if (user) {
+          await supabase
+            .from('connections')
+            .update({
+              whatsapp_status: 'connected',
+              whatsapp_connected_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', user.id);
+          setConnectionStatus(prev => ({ ...prev, whatsapp: 'connected' }));
+        }
+      } else {
+        toast.error(data?.error || "Credenciais inválidas ou número não encontrado");
+      }
+    } catch (err) {
+      console.error("Test WhatsApp error:", err);
+      toast.error("Erro ao testar conexão. Tente novamente.");
+    }
   };
 
   const handleAuthorizeGoogle = async () => {
