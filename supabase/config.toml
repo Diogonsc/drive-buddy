@@ -32,3 +32,7 @@ verify_jwt = true
 # Google OAuth - Requer autenticação
 [functions.google-oauth]
 verify_jwt = false
+
+# WhatsApp Embedded Signup - Autenticado (troca code por token, registra webhook)
+[functions.whatsapp-embedded-signup]
+verify_jwt = false
