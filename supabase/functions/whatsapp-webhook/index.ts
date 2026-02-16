@@ -83,7 +83,7 @@ async function verifySignature(
       .join('')
 
   // Constant-time comparison to prevent timing attacks
-  if (signature.length !== expected.length) return false
+  if (signature.length !== expected.length) return { valid: false }
   
   const sigBytes = encoder.encode(signature)
   const expBytes = encoder.encode(expected)

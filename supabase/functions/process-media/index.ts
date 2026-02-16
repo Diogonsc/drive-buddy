@@ -1,4 +1,4 @@
-/// <reference types="https://deno.land/x/supabase_edge_runtime@v1.70.0/types/global.d.ts" />
+// @ts-nocheck - Deno edge runtime types
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
