@@ -1,6 +1,7 @@
 // =====================================================
 // SwiftwapdriveSync - Google OAuth Edge Function
 // Gerencia autenticação OAuth 2.0 com Google Drive
+// Credenciais centralizadas via Supabase Secrets
 // =====================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -25,6 +26,19 @@ Deno.serve(async (req: Request) => {
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+  // Credenciais centralizadas (Supabase Secrets)
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+
+  if (!clientId || !clientSecret) {
+    return new Response(JSON.stringify({ 
+      error: 'Google OAuth credentials not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Supabase secrets.' 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   try {
     // Verificar autenticação do usuário
     const authHeader = req.headers.get('Authorization')
@@ -35,46 +49,33 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Criar cliente com anon key e header do usuário para validação do JWT
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     })
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: claims, error: claimsError } = await supabaseAuth.auth.getClaims(token)
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser()
     
-    if (claimsError || !claims?.claims) {
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const userId = claims.claims.sub as string
+    const userId = user.id
     const { action, code, redirectUri }: OAuthRequest = await req.json()
 
     // Criar cliente com service role para operações de banco
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Buscar configurações do usuário
+    // Buscar configurações do usuário (apenas tokens, não credenciais)
     const { data: connection } = await supabase
       .from('connections')
-      .select('google_client_id, google_client_secret, google_redirect_uri, google_refresh_token')
+      .select('google_redirect_uri, google_refresh_token')
       .eq('user_id', userId)
       .single()
 
-    if (!connection?.google_client_id || !connection?.google_client_secret) {
-      return new Response(JSON.stringify({ 
-        error: 'Google OAuth credentials not configured' 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const clientId = connection.google_client_id
-    const clientSecret = connection.google_client_secret
-    const configuredRedirectUri = connection.google_redirect_uri
+    const configuredRedirectUri = connection?.google_redirect_uri || redirectUri || ''
 
     // =====================================================
     // ACTION: AUTHORIZE - Gerar URL de autorização
@@ -87,12 +88,12 @@ Deno.serve(async (req: Request) => {
 
       const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
       authUrl.searchParams.set('client_id', clientId)
-      authUrl.searchParams.set('redirect_uri', configuredRedirectUri || redirectUri || '')
+      authUrl.searchParams.set('redirect_uri', redirectUri || configuredRedirectUri)
       authUrl.searchParams.set('response_type', 'code')
       authUrl.searchParams.set('scope', scopes.join(' '))
       authUrl.searchParams.set('access_type', 'offline')
       authUrl.searchParams.set('prompt', 'consent')
-      authUrl.searchParams.set('state', userId) // Para validação no callback
+      authUrl.searchParams.set('state', userId)
 
       return new Response(JSON.stringify({ authUrl: authUrl.toString() }), {
         status: 200,
@@ -112,7 +113,7 @@ Deno.serve(async (req: Request) => {
           client_secret: clientSecret,
           code,
           grant_type: 'authorization_code',
-          redirect_uri: configuredRedirectUri || redirectUri || '',
+          redirect_uri: redirectUri || configuredRedirectUri,
         }),
       })
 
@@ -126,19 +127,17 @@ Deno.serve(async (req: Request) => {
       }
 
       const tokens = await tokenResponse.json()
-
-      // Calcular expiração
       const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
 
-      // Salvar tokens no banco
       await supabase
         .from('connections')
         .update({
           google_access_token: tokens.access_token,
-          google_refresh_token: tokens.refresh_token || connection.google_refresh_token,
+          google_refresh_token: tokens.refresh_token || connection?.google_refresh_token,
           google_token_expires_at: expiresAt,
           google_status: 'connected',
           google_connected_at: new Date().toISOString(),
+          google_redirect_uri: redirectUri || configuredRedirectUri,
         })
         .eq('user_id', userId)
 
@@ -155,7 +154,7 @@ Deno.serve(async (req: Request) => {
     // ACTION: REFRESH - Renovar access token
     // =====================================================
     if (action === 'refresh') {
-      const refreshToken = connection.google_refresh_token
+      const refreshToken = connection?.google_refresh_token
 
       if (!refreshToken) {
         return new Response(JSON.stringify({ error: 'No refresh token available' }), {
@@ -176,7 +175,6 @@ Deno.serve(async (req: Request) => {
       })
 
       if (!tokenResponse.ok) {
-        // Refresh token inválido - marcar como desconectado
         await supabase
           .from('connections')
           .update({ google_status: 'error' })
