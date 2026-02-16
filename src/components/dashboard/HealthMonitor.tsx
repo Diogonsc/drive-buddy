@@ -85,6 +85,38 @@ export function HealthMonitor() {
   const [health, setHealth] = useState<IntegrationHealth | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [prevHealth, setPrevHealth] = useState<IntegrationHealth | null>(null);
+
+  const showHealthNotifications = (newHealth: IntegrationHealth, oldHealth: IntegrationHealth | null) => {
+    // Only notify on status changes or first load with issues
+    const checks = [
+      { key: "whatsapp_health" as const, label: "WhatsApp", msg: "whatsapp_message" as const },
+      { key: "google_health" as const, label: "Google Drive", msg: "google_message" as const },
+      { key: "processing_health" as const, label: "Processamento", msg: "processing_message" as const },
+    ];
+
+    for (const { key, label, msg } of checks) {
+      const newStatus = newHealth[key];
+      const oldStatus = oldHealth?.[key];
+
+      if (newStatus === oldStatus) continue;
+
+      const message = newHealth[msg] || "";
+
+      if (newStatus === "critical") {
+        toast.error(`⚠️ ${label}: ${message}`, {
+          duration: 10000,
+          description: "Ação necessária para restaurar o funcionamento.",
+        });
+      } else if (newStatus === "warning") {
+        toast.warning(`${label}: ${message}`, {
+          duration: 7000,
+        });
+      } else if (newStatus === "healthy" && oldStatus && oldStatus !== "unknown") {
+        toast.success(`${label} restaurado`, { duration: 4000 });
+      }
+    }
+  };
 
   const loadHealth = async () => {
     if (!user) return;
@@ -96,7 +128,10 @@ export function HealthMonitor() {
         .maybeSingle();
 
       if (!error && data) {
-        setHealth(data as IntegrationHealth);
+        const newHealth = data as IntegrationHealth;
+        showHealthNotifications(newHealth, prevHealth);
+        setPrevHealth(health);
+        setHealth(newHealth);
       }
     } catch (err) {
       console.error("Error loading health:", err);
@@ -108,6 +143,34 @@ export function HealthMonitor() {
   useEffect(() => {
     loadHealth();
   }, [user]);
+
+  // Subscribe to real-time changes on integration_status
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("integration-health-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "integration_status",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newHealth = payload.new as IntegrationHealth;
+          showHealthNotifications(newHealth, health);
+          setPrevHealth(health);
+          setHealth(newHealth);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, health]);
 
   const runHealthCheck = async () => {
     if (!user) return;
