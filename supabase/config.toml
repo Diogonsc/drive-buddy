@@ -40,3 +40,7 @@ verify_jwt = false
 # Health Check - Autenticado (verifica saúde das integrações)
 [functions.health-check]
 verify_jwt = false
+
+# Send Health Alert - Interno (envia email via Resend)
+[functions.send-health-alert]
+verify_jwt = false

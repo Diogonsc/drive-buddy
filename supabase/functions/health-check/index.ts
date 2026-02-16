@@ -114,6 +114,11 @@ async function checkUserHealth(userId: string) {
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
 
+  // Send email alerts for critical issues
+  if (overall === "critical") {
+    await sendCriticalAlerts(userId, checks);
+  }
+
   return { overall, checks };
 }
 
@@ -331,4 +336,35 @@ async function checkProcessing(userId: string, logs: any[]) {
     status: "healthy",
     message: `${total} mídias processadas nas últimas 24h`,
   };
+}
+
+async function sendCriticalAlerts(userId: string, checks: any) {
+  const alerts = [
+    { key: "whatsapp", alertType: "whatsapp_critical" },
+    { key: "google", alertType: "google_critical" },
+    { key: "processing", alertType: "processing_critical" },
+  ];
+
+  for (const { key, alertType } of alerts) {
+    if (checks[key]?.status === "critical") {
+      try {
+        const fnUrl = `${SUPABASE_URL}/functions/v1/send-health-alert`;
+        await fetch(fnUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({
+            userId,
+            alertType,
+            message: checks[key].message,
+          }),
+        });
+        console.log(`[HEALTH] Email alert sent: ${alertType} for ${userId}`);
+      } catch (err) {
+        console.error(`[HEALTH] Failed to send email alert ${alertType}:`, err);
+      }
+    }
+  }
 }
