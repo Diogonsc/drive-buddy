@@ -36,3 +36,7 @@ verify_jwt = false
 # WhatsApp Embedded Signup - Autenticado (troca code por token, registra webhook)
 [functions.whatsapp-embedded-signup]
 verify_jwt = false
+
+# Health Check - Autenticado (verifica saúde das integrações)
+[functions.health-check]
+verify_jwt = false
