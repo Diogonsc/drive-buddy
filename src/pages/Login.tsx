@@ -123,6 +123,12 @@ export default function Login() {
                     'Entrar'
                   )}
                 </Button>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Esqueci minha senha
+                </Link>
                 <p className="text-sm text-muted-foreground text-center">
                   Não tem uma conta?{' '}
                   <Link to="/signup" className="text-primary font-medium hover:underline">
