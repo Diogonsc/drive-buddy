@@ -24,7 +24,10 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
-  Clock
+  Clock,
+  Copy,
+  Check,
+  ExternalLink
 } from "lucide-react";
 
 const VALID_TABS = ['whatsapp', 'google', 'general'] as const;
@@ -42,8 +45,8 @@ export default function Settings() {
   };
 
   const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
-  const [showGoogleSecret, setShowGoogleSecret] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState({
     whatsapp: 'disconnected',
@@ -58,8 +61,6 @@ export default function Settings() {
   });
 
   const [googleConfig, setGoogleConfig] = useState({
-    clientId: "",
-    clientSecret: "",
     redirectUri: `${window.location.origin}/oauth/callback`,
     rootFolder: "/WhatsApp Uploads",
   });
@@ -95,8 +96,6 @@ export default function Settings() {
             webhookVerifyToken: connection.whatsapp_webhook_verify_token || '',
           });
           setGoogleConfig({
-            clientId: connection.google_client_id || '',
-            clientSecret: connection.google_client_secret || '',
             redirectUri: connection.google_redirect_uri || `${window.location.origin}/oauth/callback`,
             rootFolder: '/WhatsApp Uploads',
           });
@@ -165,28 +164,14 @@ export default function Settings() {
     }
   };
 
-  const handleSaveGoogle = async () => {
-    if (!user) return;
-    setIsSaving(true);
-
+  const handleCopy = async (text: string, label: string) => {
     try {
-      const { error } = await supabase
-        .from('connections')
-        .upsert({
-          user_id: user.id,
-          google_client_id: googleConfig.clientId,
-          google_client_secret: googleConfig.clientSecret,
-          google_redirect_uri: googleConfig.redirectUri,
-        }, { onConflict: 'user_id' });
-
-      if (error) throw error;
-
-      toast.success("Configurações do Google Drive salvas!");
-    } catch (error) {
-      console.error('Error saving Google config:', error);
-      toast.error("Erro ao salvar configurações");
-    } finally {
-      setIsSaving(false);
+      await navigator.clipboard.writeText(text);
+      setCopied(label);
+      toast.success(`${label} copiado!`);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      toast.error("Erro ao copiar");
     }
   };
 
@@ -262,14 +247,6 @@ export default function Settings() {
   };
 
   const handleAuthorizeGoogle = async () => {
-    if (!googleConfig.clientId || !googleConfig.clientSecret) {
-      toast.error("Preencha as credenciais do Google primeiro");
-      return;
-    }
-
-    // Save config first
-    await handleSaveGoogle();
-
     toast.info("Iniciando autenticação OAuth...");
 
     try {
@@ -332,7 +309,7 @@ export default function Settings() {
         {/* WhatsApp Configuration */}
         <TabsContent value="whatsapp" className="space-y-6">
           {connectionStatus.whatsapp === 'pending' && (
-            <Alert className="animate-fade-in border-amber-500/50 bg-amber-500/10">
+            <Alert className="animate-fade-in border-warning/50 bg-warning/10">
               <Clock className="h-4 w-4" />
               <AlertTitle>Próximo passo: configurar o webhook no Meta</AlertTitle>
               <AlertDescription>
@@ -455,24 +432,65 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-muted p-4">
-                <Label className="text-xs text-muted-foreground">Callback URL</Label>
-                <code className="block mt-1 text-sm font-mono text-foreground break-all">
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs text-muted-foreground">Callback URL</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => handleCopy(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`, "Callback URL")}
+                  >
+                    {copied === "Callback URL" ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                    Copiar
+                  </Button>
+                </div>
+                <code className="block text-sm font-mono text-foreground break-all">
                   {import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook
                 </code>
               </div>
               <div className="rounded-lg bg-muted p-4">
-                <Label className="text-xs text-muted-foreground">Verify token</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Use exatamente o mesmo valor que você definiu no campo &quot;Verify Token&quot; acima.
-                </p>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs text-muted-foreground">Verify Token</Label>
+                  {whatsappConfig.webhookVerifyToken && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleCopy(whatsappConfig.webhookVerifyToken, "Verify Token")}
+                    >
+                      {copied === "Verify Token" ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                      Copiar
+                    </Button>
+                  )}
+                </div>
+                {whatsappConfig.webhookVerifyToken ? (
+                  <code className="block text-sm font-mono text-foreground break-all">
+                    {whatsappConfig.webhookVerifyToken}
+                  </code>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Defina o Verify Token acima e salve para visualizá-lo aqui.
+                  </p>
+                )}
               </div>
               <div className="rounded-lg bg-muted p-4">
-                <Label className="text-xs text-muted-foreground">Campos para assinar</Label>
-                <code className="block mt-1 text-sm font-mono text-foreground">
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs text-muted-foreground">Campos para assinar</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => handleCopy("messages", "Campo")}
+                  >
+                    {copied === "Campo" ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                    Copiar
+                  </Button>
+                </div>
+                <code className="block text-sm font-mono text-foreground">
                   messages
                 </code>
                 <p className="text-xs text-muted-foreground mt-1">
-                  O campo <code>messages</code> é obrigatório para receber mídias. Em produção, defina a variável <code>WHATSAPP_APP_SECRET</code> (App Secret do Meta) nas Edge Functions do Supabase para validar assinaturas.
+                  O campo <code>messages</code> é obrigatório para receber mídias.
                 </p>
               </div>
             </CardContent>
@@ -489,9 +507,9 @@ export default function Settings() {
                     <HardDrive className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle>Google Drive API</CardTitle>
+                    <CardTitle>Google Drive</CardTitle>
                     <CardDescription>
-                      Configure as credenciais OAuth 2.0 do Google Cloud
+                      Conecte sua conta para salvar mídias automaticamente
                     </CardDescription>
                   </div>
                 </div>
@@ -511,122 +529,30 @@ export default function Settings() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="clientId">Client ID</Label>
-                <Input
-                  id="clientId"
-                  placeholder="Ex: 123456789-abc123.apps.googleusercontent.com"
-                  value={googleConfig.clientId}
-                  onChange={(e) =>
-                    setGoogleConfig({ ...googleConfig, clientId: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="clientSecret">Client Secret</Label>
-                <div className="relative">
-                  <Input
-                    id="clientSecret"
-                    type={showGoogleSecret ? "text" : "password"}
-                    placeholder="Secret do OAuth 2.0"
-                    value={googleConfig.clientSecret}
-                    onChange={(e) =>
-                      setGoogleConfig({ ...googleConfig, clientSecret: e.target.value })
-                    }
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowGoogleSecret(!showGoogleSecret)}
-                  >
-                    {showGoogleSecret ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+              {connectionStatus.google === 'connected' ? (
+                <Alert className="border-primary/30 bg-primary/5">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <AlertTitle>Google Drive conectado</AlertTitle>
+                  <AlertDescription>
+                    Suas mídias serão salvas automaticamente na pasta <code>/WhatsApp Uploads</code>.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Clique no botão abaixo para autorizar o acesso ao Google Drive.
+                    Suas credenciais são gerenciadas de forma segura pelo sistema.
+                  </p>
+                  <Button onClick={handleAuthorizeGoogle} className="w-full sm:w-auto">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Conectar Google Drive
                   </Button>
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="redirectUri">Redirect URI</Label>
-                <Input
-                  id="redirectUri"
-                  value={googleConfig.redirectUri}
-                  onChange={(e) =>
-                    setGoogleConfig({ ...googleConfig, redirectUri: e.target.value })
-                  }
-                  readOnly
-                />
-                <p className="text-xs text-muted-foreground">
-                  Adicione esta URL nas configurações do Google Cloud Console
-                </p>
-              </div>
-
-              {/* Google Cloud Configuration Info */}
-              <Card className="mt-6 border-primary/20 bg-primary/5">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">URLs para Configurar no Google Cloud</CardTitle>
-                  <CardDescription>
-                    Copie estas URLs e adicione no Google Cloud Console
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2 block">
-                      Origens JavaScript autorizadas:
-                    </Label>
-                    <div className="rounded-lg bg-muted p-3 space-y-1">
-                      <code className="block text-sm font-mono text-foreground break-all">
-                        {window.location.origin}
-                      </code>
-                      {window.location.protocol === 'http:' && (
-                        <p className="text-xs text-amber-600 mt-2">
-                          ⚠️ Em produção, use <code>https://</code> ao invés de <code>http://</code>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2 block">
-                      URIs de redirecionamento autorizados:
-                    </Label>
-                    <div className="rounded-lg bg-muted p-3">
-                      <code className="block text-sm font-mono text-foreground break-all">
-                        {googleConfig.redirectUri}
-                      </code>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      📝 <strong>Como configurar:</strong>
-                    </p>
-                    <ol className="text-xs text-muted-foreground mt-2 ml-4 list-decimal space-y-1">
-                      <li>Acesse o Google Cloud Console</li>
-                      <li>Vá em <strong>APIs e Serviços</strong> → <strong>Credenciais</strong></li>
-                      <li>Selecione seu OAuth 2.0 Client ID</li>
-                      <li>Adicione as URLs acima nos campos correspondentes</li>
-                      <li>Clique em <strong>Salvar</strong></li>
-                    </ol>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex gap-3 pt-4">
-                <Button onClick={handleSaveGoogle} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Salvar Configurações
-                </Button>
-                <Button variant="outline" onClick={handleAuthorizeGoogle}>
-                  <Shield className="mr-2 h-4 w-4" />
-                  Autorizar com Google
-                </Button>
+              <div className="rounded-lg bg-muted p-4 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Pasta de destino</p>
+                <code className="text-sm font-mono text-foreground">{googleConfig.rootFolder}</code>
               </div>
             </CardContent>
           </Card>

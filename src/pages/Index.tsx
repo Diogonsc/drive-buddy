@@ -6,6 +6,8 @@ import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { FlowVisualization } from "@/components/dashboard/FlowVisualization";
 import { WhatsAppStatusDetails } from "@/components/dashboard/WhatsAppStatusDetails";
+import { SetupProgress } from "@/components/dashboard/SetupProgress";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { LogEntry } from "@/components/ui/ActivityLog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +52,7 @@ const Index = () => {
   } | null>(null);
   const [lastMediaReceivedAt, setLastMediaReceivedAt] = useState<string | null>(null);
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Carregar conexões e status
   useEffect(() => {
@@ -137,6 +140,18 @@ const Index = () => {
     };
 
     loadMetrics();
+  }, [user]);
+
+  // Check first login for onboarding
+  useEffect(() => {
+    if (!user) return;
+    const onboardingKey = `onboarding_shown_${user.id}`;
+    const alreadyShown = localStorage.getItem(onboardingKey);
+    if (!alreadyShown) {
+      // Show wizard on first visit
+      setShowOnboarding(true);
+      localStorage.setItem(onboardingKey, 'true');
+    }
   }, [user]);
 
   // Carregar atividades recentes
@@ -242,20 +257,7 @@ const Index = () => {
     if (!user) return;
 
     try {
-      // Verificar se já tem credenciais configuradas
-      const { data: connData } = await supabase
-        .from('connections')
-        .select('google_client_id, google_client_secret')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!connData?.google_client_id || !connData?.google_client_secret) {
-        toast.error("Configure as credenciais do Google primeiro nas Configurações");
-        navigate('/settings?tab=google');
-        return;
-      }
-
-      // Iniciar OAuth
+      // Iniciar OAuth diretamente (credenciais centralizadas no backend)
       const { data, error } = await supabase.functions.invoke('google-oauth', {
         body: {
           action: 'authorize',
@@ -393,8 +395,20 @@ const Index = () => {
     );
   }
 
+  const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+
   return (
     <AppLayout>
+      {/* Onboarding Wizard */}
+      <OnboardingWizard
+        open={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        callbackUrl={callbackUrl}
+        whatsappConfigured={whatsappStatus === "connected" || whatsappStatus === "pending"}
+        googleDriveConnected={googleDriveStatus === "connected"}
+        onConnectGoogleDrive={handleConnectGoogleDrive}
+      />
+
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -403,6 +417,16 @@ const Index = () => {
         <p className="text-muted-foreground">
           Monitore suas automações e gerencie conexões
         </p>
+      </div>
+
+      {/* Setup Progress */}
+      <div className="mb-8 animate-fade-in">
+        <SetupProgress
+          accountCreated={true}
+          whatsappConfigured={whatsappStatus === "connected" || whatsappStatus === "pending"}
+          googleDriveConnected={googleDriveStatus === "connected"}
+          firstMediaSent={metrics.totalFiles > 0}
+        />
       </div>
 
       {/* Flow Visualization */}
