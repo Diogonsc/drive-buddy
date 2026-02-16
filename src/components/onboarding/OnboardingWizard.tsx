@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -16,16 +15,12 @@ import {
   Send,
   ArrowRight,
   CheckCircle2,
-  ExternalLink,
-  Copy,
-  Check,
 } from "lucide-react";
-import { toast } from "sonner";
+import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
 
 interface OnboardingWizardProps {
   open: boolean;
   onClose: () => void;
-  callbackUrl: string;
   whatsappConfigured: boolean;
   googleDriveConnected: boolean;
   onConnectGoogleDrive: () => void;
@@ -34,7 +29,7 @@ interface OnboardingWizardProps {
 const STEPS = [
   {
     id: "whatsapp",
-    title: "Configurar WhatsApp",
+    title: "Conectar WhatsApp",
     icon: MessageSquare,
   },
   {
@@ -52,27 +47,14 @@ const STEPS = [
 export function OnboardingWizard({
   open,
   onClose,
-  callbackUrl,
   whatsappConfigured,
   googleDriveConnected,
   onConnectGoogleDrive,
 }: OnboardingWizardProps) {
-  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [whatsappJustConnected, setWhatsappJustConnected] = useState(false);
 
   const progress = ((currentStep + 1) / STEPS.length) * 100;
-
-  const handleCopy = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(label);
-      toast.success(`${label} copiado!`);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      toast.error("Erro ao copiar");
-    }
-  };
 
   const handleNext = () => {
     if (currentStep < STEPS.length - 1) {
@@ -86,6 +68,14 @@ export function OnboardingWizard({
     if (currentStep > 0) setCurrentStep((s) => s - 1);
   };
 
+  const handleWhatsAppSuccess = () => {
+    setWhatsappJustConnected(true);
+    // Auto-advance after a short delay
+    setTimeout(() => handleNext(), 1500);
+  };
+
+  const isWhatsAppDone = whatsappConfigured || whatsappJustConnected;
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-lg">
@@ -94,7 +84,7 @@ export function OnboardingWizard({
             Configuração Inicial
           </DialogTitle>
           <DialogDescription>
-            Configure suas integrações em poucos passos
+            Conecte suas integrações em poucos cliques
           </DialogDescription>
         </DialogHeader>
 
@@ -135,66 +125,14 @@ export function OnboardingWizard({
           {currentStep === 0 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Para receber mídias do WhatsApp, configure o webhook no painel do{" "}
-                <a
-                  href="https://developers.facebook.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  Meta for Developers
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                Conecte sua conta do WhatsApp Business em 1 clique.
+                O sistema configura tudo automaticamente — webhook, número e permissões.
               </p>
 
-              <div className="space-y-3">
-                <div className="rounded-lg bg-muted p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Callback URL
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => handleCopy(callbackUrl, "Callback URL")}
-                    >
-                      {copied === "Callback URL" ? (
-                        <Check className="h-3 w-3 mr-1" />
-                      ) : (
-                        <Copy className="h-3 w-3 mr-1" />
-                      )}
-                      Copiar
-                    </Button>
-                  </div>
-                  <code className="text-sm font-mono text-foreground break-all">
-                    {callbackUrl}
-                  </code>
-                </div>
-              </div>
-
-              <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                <li>Acesse <strong>WhatsApp → Configuração → Webhook</strong></li>
-                <li>Cole a <strong>Callback URL</strong> acima</li>
-                <li>Defina um <strong>Verify Token</strong> (qualquer texto secreto)</li>
-                <li>Assine o campo <strong>messages</strong></li>
-              </ol>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => navigate("/settings?tab=whatsapp")}
-              >
-                Ir para Configurações do WhatsApp
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-
-              {whatsappConfigured && (
-                <div className="flex items-center gap-2 text-sm text-primary">
-                  <CheckCircle2 className="h-4 w-4" />
-                  WhatsApp já configurado!
-                </div>
-              )}
+              <WhatsAppConnectButton
+                onSuccess={handleWhatsAppSuccess}
+                currentStatus={isWhatsAppDone ? 'connected' : 'disconnected'}
+              />
             </div>
           )}
 
@@ -228,7 +166,7 @@ export function OnboardingWizard({
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Envie uma foto, vídeo, áudio ou documento para o número do
-                WhatsApp Business configurado. O sistema processará
+                WhatsApp Business conectado. O sistema processará
                 automaticamente e salvará no Google Drive.
               </p>
 

@@ -45,7 +45,7 @@ const Index = () => {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [connection, setConnection] = useState<{
     whatsapp_phone_number_id?: string;
-    whatsapp_webhook_verify_token?: string;
+    whatsapp_business_account_id?: string;
     whatsapp_connected_at?: string;
     google_status?: string;
     whatsapp_status?: string;
@@ -62,7 +62,7 @@ const Index = () => {
       try {
         const { data, error } = await supabase
           .from('connections')
-          .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_webhook_verify_token, whatsapp_connected_at, google_status, google_connected_at')
+          .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_business_account_id, whatsapp_connected_at, google_status, google_connected_at')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -395,6 +395,15 @@ const Index = () => {
     );
   }
 
+  const handleWhatsAppConnected = (data: any) => {
+    setWhatsappStatus(data?.status === 'connected' ? 'connected' : 'pending');
+    setConnection(prev => ({
+      ...prev,
+      whatsapp_phone_number_id: data?.phone_number_id,
+      whatsapp_business_account_id: data?.waba_id,
+    }));
+  };
+
   const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
 
   return (
@@ -403,7 +412,6 @@ const Index = () => {
       <OnboardingWizard
         open={showOnboarding}
         onClose={() => setShowOnboarding(false)}
-        callbackUrl={callbackUrl}
         whatsappConfigured={whatsappStatus === "connected" || whatsappStatus === "pending"}
         googleDriveConnected={googleDriveStatus === "connected"}
         onConnectGoogleDrive={handleConnectGoogleDrive}
@@ -426,6 +434,8 @@ const Index = () => {
           whatsappConfigured={whatsappStatus === "connected" || whatsappStatus === "pending"}
           googleDriveConnected={googleDriveStatus === "connected"}
           firstMediaSent={metrics.totalFiles > 0}
+          onConnectGoogleDrive={handleConnectGoogleDrive}
+          onWhatsAppConnected={handleWhatsAppConnected}
         />
       </div>
 
@@ -457,10 +467,11 @@ const Index = () => {
           <WhatsAppStatusDetails
             status={whatsappStatus}
             phoneNumberId={connection?.whatsapp_phone_number_id}
-            webhookVerifyToken={connection?.whatsapp_webhook_verify_token}
+            wabaId={connection?.whatsapp_business_account_id}
             connectedAt={connection?.whatsapp_connected_at || undefined}
             lastMessageAt={lastMediaReceivedAt || undefined}
             onRefresh={handleRefreshWhatsAppStatus}
+            onWhatsAppConnected={handleWhatsAppConnected}
             isRefreshing={isRefreshing}
           />
         </div>

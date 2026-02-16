@@ -3,7 +3,6 @@ import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,22 +11,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
 import { 
   MessageSquare, 
   HardDrive, 
-  Shield, 
   FolderTree,
   Save,
-  Eye,
-  EyeOff,
   CheckCircle2,
   XCircle,
-  RefreshCw,
   Loader2,
-  Clock,
-  Copy,
-  Check,
-  ExternalLink
+  Shield,
 } from "lucide-react";
 
 const VALID_TABS = ['whatsapp', 'google', 'general'] as const;
@@ -44,20 +37,15 @@ export default function Settings() {
     setSearchParams({ tab }, { replace: true });
   };
 
-  const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState({
     whatsapp: 'disconnected',
     google: 'disconnected'
   });
-
-  // Form states
-  const [whatsappConfig, setWhatsappConfig] = useState({
-    phoneNumberId: "",
-    accessToken: "",
-    webhookVerifyToken: "",
+  const [whatsappDetails, setWhatsappDetails] = useState({
+    phoneNumberId: '',
+    wabaId: '',
   });
 
   const [googleConfig, setGoogleConfig] = useState({
@@ -82,7 +70,6 @@ export default function Settings() {
       if (!user) return;
 
       try {
-        // Load connection settings
         const { data: connection } = await supabase
           .from('connections')
           .select('*')
@@ -90,22 +77,20 @@ export default function Settings() {
           .maybeSingle();
 
         if (connection) {
-          setWhatsappConfig({
+          setConnectionStatus({
+            whatsapp: connection.whatsapp_status || 'disconnected',
+            google: connection.google_status || 'disconnected'
+          });
+          setWhatsappDetails({
             phoneNumberId: connection.whatsapp_phone_number_id || '',
-            accessToken: connection.whatsapp_access_token || '',
-            webhookVerifyToken: connection.whatsapp_webhook_verify_token || '',
+            wabaId: connection.whatsapp_business_account_id || '',
           });
           setGoogleConfig({
             redirectUri: connection.google_redirect_uri || `${window.location.origin}/oauth/callback`,
             rootFolder: '/WhatsApp Uploads',
           });
-          setConnectionStatus({
-            whatsapp: connection.whatsapp_status || 'disconnected',
-            google: connection.google_status || 'disconnected'
-          });
         }
 
-        // Load user settings
         const { data: settings } = await supabase
           .from('user_settings')
           .select('*')
@@ -133,47 +118,6 @@ export default function Settings() {
 
     loadConfig();
   }, [user]);
-
-  const handleSaveWhatsApp = async () => {
-    if (!user) return;
-    setIsSaving(true);
-
-    try {
-      const { error } = await supabase
-        .from('connections')
-        .upsert({
-          user_id: user.id,
-          whatsapp_phone_number_id: whatsappConfig.phoneNumberId,
-          whatsapp_access_token: whatsappConfig.accessToken,
-          whatsapp_webhook_verify_token: whatsappConfig.webhookVerifyToken || null,
-          whatsapp_status: whatsappConfig.phoneNumberId && whatsappConfig.accessToken ? 'pending' : 'disconnected',
-        }, { onConflict: 'user_id' });
-
-      if (error) throw error;
-
-      toast.success("Configurações do WhatsApp salvas!");
-      setConnectionStatus(prev => ({
-        ...prev,
-        whatsapp: whatsappConfig.phoneNumberId && whatsappConfig.accessToken ? 'pending' : 'disconnected'
-      }));
-    } catch (error) {
-      console.error('Error saving WhatsApp config:', error);
-      toast.error("Erro ao salvar configurações");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCopy = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(label);
-      toast.success(`${label} copiado!`);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      toast.error("Erro ao copiar");
-    }
-  };
 
   const handleSaveGeneral = async () => {
     if (!user) return;
@@ -205,47 +149,6 @@ export default function Settings() {
     }
   };
 
-  const handleTestWhatsApp = async () => {
-    if (!whatsappConfig.phoneNumberId?.trim() || !whatsappConfig.accessToken?.trim()) {
-      toast.error("Preencha Phone Number ID e Access Token primeiro");
-      return;
-    }
-    toast.info("Testando conexão com a API do WhatsApp...");
-    try {
-      const { data, error } = await supabase.functions.invoke('whatsapp-test-connection', {
-        body: {
-          phoneNumberId: whatsappConfig.phoneNumberId.trim(),
-          accessToken: whatsappConfig.accessToken.trim(),
-        },
-      });
-      if (error) {
-        toast.error(error.message || "Erro ao testar conexão");
-        return;
-      }
-      if (data?.success) {
-        const name = data.verified_name || data.display_phone_number;
-        toast.success(name ? `Conexão OK: ${name}` : "Credenciais válidas! Conexão com a API OK.");
-        // Atualiza status para connected no banco para refletir na Dashboard
-        if (user) {
-          await supabase
-            .from('connections')
-            .update({
-              whatsapp_status: 'connected',
-              whatsapp_connected_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', user.id);
-          setConnectionStatus(prev => ({ ...prev, whatsapp: 'connected' }));
-        }
-      } else {
-        toast.error(data?.error || "Credenciais inválidas ou número não encontrado");
-      }
-    } catch (err) {
-      console.error("Test WhatsApp error:", err);
-      toast.error("Erro ao testar conexão. Tente novamente.");
-    }
-  };
-
   const handleAuthorizeGoogle = async () => {
     toast.info("Iniciando autenticação OAuth...");
 
@@ -268,6 +171,30 @@ export default function Settings() {
     }
   };
 
+  const handleWhatsAppConnected = (data: any) => {
+    setConnectionStatus(prev => ({ ...prev, whatsapp: data.status || 'connected' }));
+    setWhatsappDetails({
+      phoneNumberId: data.phone_number_id || '',
+      wabaId: data.waba_id || '',
+    });
+  };
+
+  const handleDisconnectWhatsApp = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('whatsapp-embedded-signup', {
+        body: { action: 'disconnect' },
+      });
+
+      if (error) throw error;
+
+      setConnectionStatus(prev => ({ ...prev, whatsapp: 'disconnected' }));
+      setWhatsappDetails({ phoneNumberId: '', wabaId: '' });
+      toast.success("WhatsApp desconectado.");
+    } catch (err) {
+      toast.error("Erro ao desconectar WhatsApp");
+    }
+  };
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -280,7 +207,6 @@ export default function Settings() {
 
   return (
     <AppLayout>
-      {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Configurações
@@ -306,17 +232,8 @@ export default function Settings() {
           </TabsTrigger>
         </TabsList>
 
-        {/* WhatsApp Configuration */}
+        {/* WhatsApp Configuration — Embedded Signup */}
         <TabsContent value="whatsapp" className="space-y-6">
-          {connectionStatus.whatsapp === 'pending' && (
-            <Alert className="animate-fade-in border-warning/50 bg-warning/10">
-              <Clock className="h-4 w-4" />
-              <AlertTitle>Próximo passo: configurar o webhook no Meta</AlertTitle>
-              <AlertDescription>
-                Suas credenciais foram salvas. Para ativar o recebimento de mensagens, configure o webhook no painel do Meta for Developers (WhatsApp → Configuração → Webhook) usando a Callback URL e o Verify Token exibidos abaixo.
-              </AlertDescription>
-            </Alert>
-          )}
           <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -325,9 +242,9 @@ export default function Settings() {
                     <MessageSquare className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle>WhatsApp Business API</CardTitle>
+                    <CardTitle>WhatsApp Business</CardTitle>
                     <CardDescription>
-                      Configure as credenciais da API oficial do Meta
+                      Conecte sua conta do WhatsApp Business em 1 clique
                     </CardDescription>
                   </div>
                 </div>
@@ -336,11 +253,6 @@ export default function Settings() {
                     <>
                       <CheckCircle2 className="h-3 w-3 text-primary" />
                       Conectado
-                    </>
-                  ) : connectionStatus.whatsapp === 'pending' ? (
-                    <>
-                      <Clock className="h-3 w-3" />
-                      Pendente
                     </>
                   ) : (
                     <>
@@ -352,147 +264,49 @@ export default function Settings() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumberId">Phone Number ID</Label>
-                <Input
-                  id="phoneNumberId"
-                  placeholder="Ex: 123456789012345"
-                  value={whatsappConfig.phoneNumberId}
-                  onChange={(e) =>
-                    setWhatsappConfig({ ...whatsappConfig, phoneNumberId: e.target.value })
-                  }
-                />
-              </div>
+              {connectionStatus.whatsapp === 'connected' ? (
+                <div className="space-y-4">
+                  <Alert className="border-primary/30 bg-primary/5">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <AlertTitle>WhatsApp conectado</AlertTitle>
+                    <AlertDescription>
+                      Sua conta está recebendo mídias automaticamente. O webhook foi configurado pelo sistema.
+                    </AlertDescription>
+                  </Alert>
 
-              <div className="space-y-2">
-                <Label htmlFor="accessToken">Access Token</Label>
-                <div className="relative">
-                  <Input
-                    id="accessToken"
-                    type={showWhatsAppToken ? "text" : "password"}
-                    placeholder="Token de acesso permanente do Meta"
-                    value={whatsappConfig.accessToken}
-                    onChange={(e) =>
-                      setWhatsappConfig({ ...whatsappConfig, accessToken: e.target.value })
-                    }
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowWhatsAppToken(!showWhatsAppToken)}
-                  >
-                    {showWhatsAppToken ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="webhookVerifyToken">Verify Token (Webhook)</Label>
-                <Input
-                  id="webhookVerifyToken"
-                  type="text"
-                  placeholder="Ex: meu_token_secreto_123"
-                  value={whatsappConfig.webhookVerifyToken}
-                  onChange={(e) =>
-                    setWhatsappConfig({ ...whatsappConfig, webhookVerifyToken: e.target.value })
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use o mesmo valor em &quot;Verify token&quot; no painel do Meta (WhatsApp → Configuração → Webhook). Necessário para validar o webhook.
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button onClick={handleSaveWhatsApp} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Salvar Configurações
-                </Button>
-                <Button variant="outline" onClick={handleTestWhatsApp}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Testar Conexão
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Webhook Info */}
-          <Card className="animate-fade-in" style={{ animationDelay: '300ms' }}>
-            <CardHeader>
-              <CardTitle className="text-base">Configuração do Webhook</CardTitle>
-              <CardDescription>
-                Configure estes endpoints no painel do Meta Business (WhatsApp → Configuração → Webhook)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg bg-muted p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <Label className="text-xs text-muted-foreground">Callback URL</Label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => handleCopy(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`, "Callback URL")}
-                  >
-                    {copied === "Callback URL" ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                    Copiar
-                  </Button>
-                </div>
-                <code className="block text-sm font-mono text-foreground break-all">
-                  {import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook
-                </code>
-              </div>
-              <div className="rounded-lg bg-muted p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <Label className="text-xs text-muted-foreground">Verify Token</Label>
-                  {whatsappConfig.webhookVerifyToken && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => handleCopy(whatsappConfig.webhookVerifyToken, "Verify Token")}
-                    >
-                      {copied === "Verify Token" ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                      Copiar
-                    </Button>
+                  {(whatsappDetails.phoneNumberId || whatsappDetails.wabaId) && (
+                    <div className="rounded-lg bg-muted p-4 space-y-2 text-sm">
+                      {whatsappDetails.phoneNumberId && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Phone Number ID:</span>
+                          <code className="text-xs bg-background px-2 py-0.5 rounded">{whatsappDetails.phoneNumberId}</code>
+                        </div>
+                      )}
+                      {whatsappDetails.wabaId && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">WABA ID:</span>
+                          <code className="text-xs bg-background px-2 py-0.5 rounded">{whatsappDetails.wabaId}</code>
+                        </div>
+                      )}
+                    </div>
                   )}
-                </div>
-                {whatsappConfig.webhookVerifyToken ? (
-                  <code className="block text-sm font-mono text-foreground break-all">
-                    {whatsappConfig.webhookVerifyToken}
-                  </code>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Defina o Verify Token acima e salve para visualizá-lo aqui.
-                  </p>
-                )}
-              </div>
-              <div className="rounded-lg bg-muted p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <Label className="text-xs text-muted-foreground">Campos para assinar</Label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => handleCopy("messages", "Campo")}
-                  >
-                    {copied === "Campo" ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                    Copiar
+
+                  <Button variant="destructive" size="sm" onClick={handleDisconnectWhatsApp}>
+                    Desconectar WhatsApp
                   </Button>
                 </div>
-                <code className="block text-sm font-mono text-foreground">
-                  messages
-                </code>
-                <p className="text-xs text-muted-foreground mt-1">
-                  O campo <code>messages</code> é obrigatório para receber mídias.
-                </p>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Conecte sua conta do WhatsApp Business de forma automática. 
+                    O sistema irá configurar o webhook, registrar o número e iniciar o recebimento de mídias — tudo sem sair do app.
+                  </p>
+                  <WhatsAppConnectButton
+                    onSuccess={handleWhatsAppConnected}
+                    currentStatus={connectionStatus.whatsapp as any}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
