@@ -7,6 +7,7 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { FlowVisualization } from "@/components/dashboard/FlowVisualization";
 import { WhatsAppStatusDetails } from "@/components/dashboard/WhatsAppStatusDetails";
 import { HealthMonitor } from "@/components/dashboard/HealthMonitor";
+import { AnalyticsDashboard } from "@/components/dashboard/AnalyticsDashboard";
 import { SetupProgress } from "@/components/dashboard/SetupProgress";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { LogEntry } from "@/components/ui/ActivityLog";
@@ -483,8 +484,13 @@ const Index = () => {
         <HealthMonitor />
       </div>
 
-      {/* Metrics */}
+      {/* Analytics Dashboard */}
       <div className="mb-8 animate-fade-in" style={{ animationDelay: "250ms" }}>
+        <AnalyticsDashboard />
+      </div>
+
+      {/* Metrics */}
+      <div className="mb-8 animate-fade-in" style={{ animationDelay: "300ms" }}>
         <h2 className="mb-4 text-lg font-semibold text-foreground">Métricas</h2>
         <MetricsGrid metrics={metrics} />
       </div>
