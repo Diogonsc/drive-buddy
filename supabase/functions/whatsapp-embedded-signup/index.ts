@@ -60,35 +60,52 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  // ---- Auth check ----
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-
-  const authHeader = req.headers.get('authorization')
-  if (!authHeader) {
-    return jsonError('Não autorizado', 401)
-  }
-
-  // Validate user JWT
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { authorization: authHeader } },
-  })
-  const { data: { user }, error: userError } = await userClient.auth.getUser()
-  if (userError || !user) {
-    return jsonError('Sessão inválida', 401)
-  }
-
-  // Admin client for DB operations
-  const adminClient = createClient(supabaseUrl, serviceRoleKey)
-
-  // ---- Get config ----
   const META_APP_ID = Deno.env.get('META_APP_ID')
   const META_APP_SECRET = Deno.env.get('META_APP_SECRET')
 
   try {
     const body = await req.json()
     const { action, connectionId } = body
+
+    // =====================================================
+    // ACTION: get_config (public — no auth required)
+    // =====================================================
+    if (action === 'get_config') {
+      if (!META_APP_ID) {
+        return jsonError(
+          friendlyError('MISSING_CONFIG', 'META_APP_ID not set'),
+          503,
+        )
+      }
+
+      const configId = Deno.env.get('META_CONFIG_ID')
+      
+      return jsonSuccess({
+        app_id: META_APP_ID,
+        config_id: configId || null,
+        sdk_version: GRAPH_API_VERSION,
+      })
+    }
+
+    // ---- Auth check (all other actions) ----
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+
+    const authHeader = req.headers.get('authorization')
+    if (!authHeader) {
+      return jsonError('Não autorizado', 401)
+    }
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { authorization: authHeader } },
+    })
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
+    if (userError || !user) {
+      return jsonError('Sessão inválida', 401)
+    }
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
     // =====================================================
     // ACTION: exchange_code
@@ -361,22 +378,7 @@ Deno.serve(async (req) => {
     // =====================================================
     // ACTION: get_config (returns public app config for SDK)
     // =====================================================
-    if (action === 'get_config') {
-      if (!META_APP_ID) {
-        return jsonError(
-          friendlyError('MISSING_CONFIG', 'META_APP_ID not set'),
-          503,
-        )
-      }
-
-      const configId = Deno.env.get('META_CONFIG_ID')
-      
-      return jsonSuccess({
-        app_id: META_APP_ID,
-        config_id: configId || null,
-        sdk_version: GRAPH_API_VERSION,
-      })
-    }
+    // get_config is handled above (before auth check)
 
     // =====================================================
     // ACTION: disconnect
