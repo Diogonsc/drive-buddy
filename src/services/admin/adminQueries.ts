@@ -37,6 +37,32 @@ export interface UserRoleRow {
   created_at: string;
 }
 
+export interface IntegrationOverview {
+  whatsapp: {
+    total: number;
+    connected: number;
+    pending: number;
+    disconnected: number;
+    error: number;
+  };
+  google: {
+    total: number;
+    connected: number;
+    pending: number;
+    disconnected: number;
+    error: number;
+  };
+  routingRules: {
+    total: number;
+    active: number;
+  };
+}
+
+export interface PlanDistributionRow {
+  plan: string;
+  users: number;
+}
+
 /** Contagem de usuários por role */
 export async function fetchRoleCounts(): Promise<RoleCount[]> {
   const { data, error } = await supabase
@@ -136,4 +162,57 @@ export async function fetchAllLogs(filters?: {
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as SyncLogRow[];
+}
+
+export async function fetchIntegrationOverview(): Promise<IntegrationOverview> {
+  const [{ data: wa }, { data: google }, { data: rules }] = await Promise.all([
+    supabase.from("whatsapp_connections").select("id, status"),
+    supabase.from("google_drive_accounts").select("id, status"),
+    supabase.from("media_routing_rules").select("id, is_active"),
+  ]);
+
+  const waRows = wa ?? [];
+  const googleRows = google ?? [];
+  const ruleRows = rules ?? [];
+
+  return {
+    whatsapp: {
+      total: waRows.length,
+      connected: waRows.filter((row) => row.status === "connected").length,
+      pending: waRows.filter((row) => row.status === "pending").length,
+      disconnected: waRows.filter((row) => row.status === "disconnected").length,
+      error: waRows.filter((row) => row.status === "error").length,
+    },
+    google: {
+      total: googleRows.length,
+      connected: googleRows.filter((row) => row.status === "connected").length,
+      pending: googleRows.filter((row) => row.status === "pending").length,
+      disconnected: googleRows.filter((row) => row.status === "disconnected").length,
+      error: googleRows.filter((row) => row.status === "error").length,
+    },
+    routingRules: {
+      total: ruleRows.length,
+      active: ruleRows.filter((row) => row.is_active).length,
+    },
+  };
+}
+
+export async function fetchPlanDistribution(): Promise<PlanDistributionRow[]> {
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("plan, user_id");
+
+  if (error) throw error;
+
+  const counts = new Map<string, Set<string>>();
+  for (const row of data ?? []) {
+    const key = row.plan || "unknown";
+    if (!counts.has(key)) counts.set(key, new Set<string>());
+    counts.get(key)?.add(row.user_id);
+  }
+
+  return Array.from(counts.entries()).map(([plan, users]) => ({
+    plan,
+    users: users.size,
+  }));
 }

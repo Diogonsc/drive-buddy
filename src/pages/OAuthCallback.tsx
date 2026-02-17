@@ -42,12 +42,16 @@ export default function OAuthCallback() {
       }
 
       try {
+        const accountLabel = localStorage.getItem('google_oauth_account_label') || undefined
+        localStorage.removeItem('google_oauth_account_label')
+
         // Call the edge function to exchange code for tokens
         const { data, error: fnError } = await supabase.functions.invoke('google-oauth', {
           body: {
             action: 'callback',
             code,
             redirectUri: `${window.location.origin}/oauth/callback`,
+            accountLabel,
           },
         })
 

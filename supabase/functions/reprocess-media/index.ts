@@ -20,154 +20,61 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-/* =========================
-   Helpers
-========================= */
-const TOKEN_EXPIRY_BUFFER_MS = 2 * 60 * 1000; // 2 min antes de expirar
-
-async function refreshGoogleAccessToken(
-  clientId: string,
-  clientSecret: string,
-  refreshToken: string
-): Promise<{ access_token: string; expires_in: number }> {
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("[REFRESH ERROR]", err);
-    throw new Error("Falha ao renovar token do Google. Reconecte o Google Drive.");
-  }
-  return res.json();
-}
-
-async function uploadToGoogleDrive(token: string, file: any): Promise<string> {
-  const metadata = { name: file.file_name };
-  const form = new FormData();
-  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-  form.append("file", new Blob([file.file_buffer], { type: file.mime_type || "application/octet-stream" }));
-
-  const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
-  });
-
-  const json = await res.json();
-  if (!res.ok) {
-    console.error("[UPLOAD ERROR]", json);
-    throw new Error("Erro no upload para Google Drive");
-  }
-  return json.id;
-}
-
-/* =========================
-   Handler
-========================= */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const startTime = Date.now();
-  let mediaFileId: string | null = null;
-
   try {
-    const body = await req.json();
-    mediaFileId = body.mediaFileId;
+    const body = await req.json().catch(() => ({}));
+    const mediaFileId = body.mediaFileId as string | undefined;
     if (!mediaFileId) throw new Error("mediaFileId é obrigatório");
 
-    console.log("[START] reprocess-media", mediaFileId);
-
-    // 1️⃣ BUSCA ARQUIVO
     const { data: media, error: fetchError } = await supabase
       .from("media_files")
-      .select("*")
+      .select("id, user_id, status, last_attempt_at")
       .eq("id", mediaFileId)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !media) throw new Error("Arquivo não encontrado");
 
-    // 2️⃣ LOCK — em reprocessamento permitimos seguir mesmo se estiver "processing" (pode estar travado)
-    await supabase.from("media_files").update({ status: "processing", error_message: null }).eq("id", mediaFileId);
-    console.log("[LOCK] Marcado como processing");
+    const lastAttemptTs = media.last_attempt_at ? new Date(media.last_attempt_at).getTime() : 0;
+    const processingStaleMs = 5 * 60 * 1000;
+    const isStaleProcessing =
+      media.status === "processing" && lastAttemptTs > 0 && Date.now() - lastAttemptTs > processingStaleMs;
 
-    // 3️⃣ PEGAR TOKEN DO USUÁRIO (tabela connections)
-    if (!media.user_id) throw new Error("Arquivo sem usuário associado");
-
-    const { data: connection, error: connError } = await supabase
-      .from("connections")
-      .select("google_access_token, google_refresh_token, google_token_expires_at, google_client_id, google_client_secret")
-      .eq("user_id", media.user_id)
-      .single();
-
-    if (connError || !connection) {
-      console.error("[AUTH] connections query:", connError?.message ?? "no row");
-      throw new Error("Conexão não encontrada ou Google Drive não conectado");
-    }
-
-    let token = connection.google_access_token;
-    if (!token && connection.google_refresh_token) {
-      const refreshed = await refreshGoogleAccessToken(
-        connection.google_client_id!,
-        connection.google_client_secret!,
-        connection.google_refresh_token
+    if (media.status === "processing" && !isStaleProcessing) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Arquivo já está em processamento",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
-      token = refreshed.access_token;
-      const expiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
-      await supabase.from("connections").update({ google_access_token: token, google_token_expires_at: expiresAt }).eq("user_id", media.user_id);
-      console.log("[AUTH] Token renovado via refresh_token");
-    }
-    if (!token) throw new Error("Token do Google não encontrado. Conecte o Google Drive nas configurações.");
-
-    const expiresAtTs = connection.google_token_expires_at ? new Date(connection.google_token_expires_at).getTime() : 0;
-    if (expiresAtTs && expiresAtTs - Date.now() < TOKEN_EXPIRY_BUFFER_MS && connection.google_refresh_token) {
-      const refreshed = await refreshGoogleAccessToken(
-        connection.google_client_id!,
-        connection.google_client_secret!,
-        connection.google_refresh_token
-      );
-      token = refreshed.access_token;
-      const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
-      await supabase.from("connections").update({ google_access_token: token, google_token_expires_at: newExpiresAt }).eq("user_id", media.user_id);
-      console.log("[AUTH] Token renovado (expiração próxima)");
     }
 
-    console.log("[AUTH] Token Google obtido");
+    // Reset state and delegate all processing logic to process-media
+    await supabase
+      .from("media_files")
+      .update({
+        status: "pending",
+        error_message: null,
+        is_permanent_failure: false,
+      })
+      .eq("id", mediaFileId);
 
-    // 4️⃣ UPLOAD
-    console.log("[UPLOAD] Reprocessando para Google Drive");
-    const driveFileId = await uploadToGoogleDrive(token, media);
-    console.log("[UPLOAD] Sucesso:", driveFileId);
+    const { error: invokeError } = await supabase.functions.invoke("process-media", {
+      body: { mediaFileId },
+    });
 
-    // 5️⃣ FINALIZA
-    await supabase.from("media_files").update({
-      status: "completed",
-      google_drive_file_id: driveFileId,
-      file_size_bytes: media.file_buffer?.length ?? null,
-      processed_at: new Date().toISOString(),
-      error_message: null,
-    }).eq("id", mediaFileId);
+    if (invokeError) {
+      throw new Error(invokeError.message || "Falha ao disparar reprocessamento");
+    }
 
-    console.log("[SUCCESS] Arquivo reprocessado com sucesso");
-
-    return new Response(JSON.stringify({ success: true, message: "Arquivo reprocessado com sucesso" }), { headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ success: true, message: "Reprocessamento disparado com sucesso" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
 
   } catch (err) {
-    console.error("[ERROR] reprocess-media", err);
-
-    if (mediaFileId) {
-      await supabase.from("media_files").update({ status: "failed", error_message: String(err) }).eq("id", mediaFileId);
-    }
-
     return new Response(JSON.stringify({ success: false, message: String(err) }), { headers: corsHeaders, status: 500 });
-  } finally {
-    const duration = Date.now() - startTime;
-    console.log(`[END] reprocess-media (${duration}ms)`);
   }
 });

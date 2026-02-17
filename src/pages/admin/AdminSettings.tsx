@@ -15,16 +15,16 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
-import { fetchUserRoles } from "@/services/admin/adminQueries";
+import { fetchIntegrationOverview, fetchPlanDistribution, fetchUserRoles } from "@/services/admin/adminQueries";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Shield,
   Settings,
   Database,
+  MessageSquare,
   HardDrive,
-  Zap,
-  Webhook,
+  Link as LinkIcon,
   Lock,
   ExternalLink,
   Info,
@@ -46,6 +46,16 @@ export default function AdminSettings() {
   const { data: userRoles, isLoading } = useQuery({
     queryKey: ["admin-settings-roles"],
     queryFn: fetchUserRoles,
+  });
+
+  const { data: integrationOverview } = useQuery({
+    queryKey: ["admin-settings-integration-overview"],
+    queryFn: fetchIntegrationOverview,
+  });
+
+  const { data: planDistribution } = useQuery({
+    queryKey: ["admin-settings-plan-distribution"],
+    queryFn: fetchPlanDistribution,
   });
 
   return (
@@ -103,21 +113,63 @@ export default function AdminSettings() {
           description="Visão geral das conexões do sistema (visual, sem ações)"
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <StatusCard title="Supabase" status="connected" icon={Database} />
-            <StatusCard title="Storage" status="active" icon={HardDrive} />
             <StatusCard
-              title="Edge Functions"
-              status="unknown"
-              statusLabel="Status desconhecido"
-              icon={Zap}
+              title="WhatsApp (multi)"
+              status={integrationOverview?.whatsapp.connected ? "connected" : "disconnected"}
+              statusLabel={`${integrationOverview?.whatsapp.connected ?? 0} conectados de ${integrationOverview?.whatsapp.total ?? 0}`}
+              icon={MessageSquare}
             />
             <StatusCard
-              title="Webhooks"
-              status="disconnected"
-              statusLabel="Não configurado"
-              icon={Webhook}
+              title="Google Drive (multi)"
+              status={integrationOverview?.google.connected ? "active" : "disconnected"}
+              statusLabel={`${integrationOverview?.google.connected ?? 0} conectados de ${integrationOverview?.google.total ?? 0}`}
+              icon={HardDrive}
+            />
+            <StatusCard
+              title="Regras de roteamento"
+              status={integrationOverview?.routingRules.active ? "active" : "unknown"}
+              statusLabel={`${integrationOverview?.routingRules.active ?? 0} ativas de ${integrationOverview?.routingRules.total ?? 0}`}
+              icon={LinkIcon}
+            />
+            <StatusCard
+              title="Supabase"
+              status="connected"
+              statusLabel="Online"
+              icon={Database}
             />
           </div>
+        </AdminSection>
+
+        {/* 2.1 Planos B2B */}
+        <AdminSection title="Distribuição de Planos" description="Usuários por plano comercial (subscriptions)">
+          <Card>
+            <CardContent className="p-0">
+              {planDistribution && planDistribution.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Plano</TableHead>
+                        <TableHead>Usuários</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {planDistribution.map((row) => (
+                        <TableRow key={row.plan}>
+                          <TableCell className="font-medium">{row.plan}</TableCell>
+                          <TableCell>{row.users}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">
+                  Sem dados de plano.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </AdminSection>
 
         {/* 3. Roles e Permissões */}

@@ -16,11 +16,12 @@ import {
 } from "@/components/ui/table";
 import {
   fetchRoleCounts,
+  fetchIntegrationOverview,
   fetchLogStats,
   fetchRecentLogs,
   type SyncLogRow,
 } from "@/services/admin/adminQueries";
-import { Users, Shield, Activity, AlertCircle, Loader2, FileStack, ScrollText } from "lucide-react";
+import { Users, Shield, Activity, AlertCircle, Loader2, ScrollText, Link as LinkIcon, HardDrive, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -47,7 +48,12 @@ export default function AdminDashboard() {
     queryFn: () => fetchRecentLogs(10),
   });
 
-  const loading = loadingRoles || loadingStats || loadingLogs;
+  const { data: integrationOverview, isLoading: loadingIntegration } = useQuery({
+    queryKey: ["admin-integration-overview"],
+    queryFn: fetchIntegrationOverview,
+  });
+
+  const loading = loadingRoles || loadingStats || loadingLogs || loadingIntegration;
 
   const adminCount = roleCounts?.find((r) => r.role === "admin")?.count ?? 0;
   const userCount = roleCounts?.find((r) => r.role === "user")?.count ?? 0;
@@ -142,28 +148,46 @@ export default function AdminDashboard() {
             </div>
           </AdminSection>
 
-          {/* Pipeline de Mídia - Indisponível */}
-          <AdminSection title="Pipeline de Mídia">
-            <BlockedAccess
-              title="Totais indisponíveis"
-              description="Totais e status de media_files exigem policy ou RPC adicional. Esta visualização está indisponível no momento."
-              variant="info"
-            />
-            <Card className="mt-4">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                    <FileStack className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">O que seria exibido</CardTitle>
-                    <CardDescription>
-                      Total de arquivos por status (pending, processing, completed, failed).
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
+          <AdminSection title="Integrações B2B" description="Status multi-conexão e roteamento">
+            {integrationOverview ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  title="WhatsApp conectados"
+                  value={integrationOverview.whatsapp.connected}
+                  subtitle={`de ${integrationOverview.whatsapp.total} números`}
+                  icon={MessageSquare}
+                />
+                <MetricCard
+                  title="Google conectados"
+                  value={integrationOverview.google.connected}
+                  subtitle={`de ${integrationOverview.google.total} contas`}
+                  icon={HardDrive}
+                />
+                <MetricCard
+                  title="Regras de roteamento"
+                  value={integrationOverview.routingRules.total}
+                  subtitle={`${integrationOverview.routingRules.active} ativas`}
+                  icon={LinkIcon}
+                />
+                <MetricCard
+                  title="Integrações com erro"
+                  value={integrationOverview.whatsapp.error + integrationOverview.google.error}
+                  subtitle="whatsapp + google"
+                  icon={AlertCircle}
+                  className={
+                    integrationOverview.whatsapp.error + integrationOverview.google.error > 0
+                      ? "border-destructive/50"
+                      : ""
+                  }
+                />
+              </div>
+            ) : (
+              <BlockedAccess
+                title="Sem dados de integração"
+                description="Não foi possível carregar os indicadores de integrações."
+                variant="info"
+              />
+            )}
           </AdminSection>
 
           {/* Logs Recentes */}

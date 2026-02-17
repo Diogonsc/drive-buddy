@@ -15,6 +15,18 @@ interface OAuthRequest {
   action: 'authorize' | 'callback' | 'refresh'
   code?: string
   redirectUri?: string
+  accountId?: string
+  accountLabel?: string
+}
+
+async function getGoogleAccountEmail(accessToken: string): Promise<string | null> {
+  const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+
+  if (!res.ok) return null
+  const json = await res.json()
+  return json?.user?.emailAddress || null
 }
 
 Deno.serve(async (req: Request) => {
@@ -63,7 +75,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const userId = user.id
-    const { action, code, redirectUri }: OAuthRequest = await req.json()
+    const { action, code, redirectUri, accountId, accountLabel }: OAuthRequest = await req.json()
 
     // Criar cliente com service role para operações de banco
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
@@ -74,6 +86,14 @@ Deno.serve(async (req: Request) => {
       .select('google_redirect_uri, google_refresh_token')
       .eq('user_id', userId)
       .single()
+
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('google_accounts_limit')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    const googleAccountsLimit = Math.max(1, Number(subscription?.google_accounts_limit || 1))
 
     const configuredRedirectUri = connection?.google_redirect_uri || redirectUri || ''
 
@@ -128,6 +148,72 @@ Deno.serve(async (req: Request) => {
 
       const tokens = await tokenResponse.json()
       const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+      const accountEmail = await getGoogleAccountEmail(tokens.access_token)
+
+      // Validate account limit only for a brand new account
+      const { data: existingByEmail } = accountEmail
+        ? await supabase
+            .from('google_drive_accounts')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('account_email', accountEmail)
+            .maybeSingle()
+        : { data: null }
+
+      const { count: activeGoogleAccounts } = await supabase
+        .from('google_drive_accounts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .in('status', ['connected', 'pending'])
+
+      const isNewAccount = !existingByEmail
+      if (isNewAccount && (activeGoogleAccounts || 0) >= googleAccountsLimit) {
+        return new Response(JSON.stringify({
+          error: `Limite do plano atingido: seu plano permite até ${googleAccountsLimit} conta(s) Google Drive.`,
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (accountId) {
+        await supabase
+          .from('google_drive_accounts')
+          .update({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token || connection?.google_refresh_token,
+            token_expires_at: expiresAt,
+            account_email: accountEmail,
+            status: 'connected',
+            connected_at: new Date().toISOString(),
+          })
+          .eq('id', accountId)
+          .eq('user_id', userId)
+      } else if (existingByEmail?.id) {
+        await supabase
+          .from('google_drive_accounts')
+          .update({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token || connection?.google_refresh_token,
+            token_expires_at: expiresAt,
+            status: 'connected',
+            connected_at: new Date().toISOString(),
+          })
+          .eq('id', existingByEmail.id)
+      } else {
+        await supabase
+          .from('google_drive_accounts')
+          .insert({
+            user_id: userId,
+            label: accountLabel || (accountEmail ? `Drive ${accountEmail}` : 'Drive Principal'),
+            account_email: accountEmail,
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token || connection?.google_refresh_token,
+            token_expires_at: expiresAt,
+            status: 'connected',
+            connected_at: new Date().toISOString(),
+          })
+      }
 
       await supabase
         .from('connections')
@@ -154,7 +240,34 @@ Deno.serve(async (req: Request) => {
     // ACTION: REFRESH - Renovar access token
     // =====================================================
     if (action === 'refresh') {
-      const refreshToken = connection?.google_refresh_token
+      let refreshToken = connection?.google_refresh_token || null
+      let updateTarget: { type: 'legacy' | 'multi'; id?: string } = { type: 'legacy' }
+
+      if (accountId) {
+        const { data: selectedAccount } = await supabase
+          .from('google_drive_accounts')
+          .select('id, refresh_token')
+          .eq('id', accountId)
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (selectedAccount?.refresh_token) {
+          refreshToken = selectedAccount.refresh_token
+          updateTarget = { type: 'multi', id: selectedAccount.id }
+        }
+      } else {
+        const { data: firstAccount } = await supabase
+          .from('google_drive_accounts')
+          .select('id, refresh_token')
+          .eq('user_id', userId)
+          .eq('status', 'connected')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+        if (firstAccount?.refresh_token) {
+          refreshToken = firstAccount.refresh_token
+          updateTarget = { type: 'multi', id: firstAccount.id }
+        }
+      }
 
       if (!refreshToken) {
         return new Response(JSON.stringify({ error: 'No refresh token available' }), {
@@ -188,6 +301,17 @@ Deno.serve(async (req: Request) => {
 
       const tokens = await tokenResponse.json()
       const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+
+      if (updateTarget.type === 'multi' && updateTarget.id) {
+        await supabase
+          .from('google_drive_accounts')
+          .update({
+            access_token: tokens.access_token,
+            token_expires_at: expiresAt,
+            status: 'connected',
+          })
+          .eq('id', updateTarget.id)
+      }
 
       await supabase
         .from('connections')

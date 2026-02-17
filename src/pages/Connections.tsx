@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,114 +7,188 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  ArrowRight, 
-  MessageSquare, 
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  MessageSquare,
   HardDrive,
   Settings,
   RefreshCw,
-  Loader2
+  Loader2,
+  Link as LinkIcon,
 } from "lucide-react";
 
-interface ConnectionData {
-  whatsapp_status: string;
-  whatsapp_phone_number_id: string | null;
-  whatsapp_connected_at: string | null;
-  google_status: string;
-  google_connected_at: string | null;
+type ConnectionStatus = "connected" | "disconnected" | "pending" | "error";
+
+interface SubscriptionInfo {
+  whatsapp_numbers_limit: number;
+  google_accounts_limit: number;
+}
+
+interface WhatsAppConnection {
+  id: string;
+  label: string | null;
+  phone_number_id: string;
+  status: ConnectionStatus;
+  connected_at: string | null;
+}
+
+interface GoogleDriveAccount {
+  id: string;
+  label: string | null;
+  account_email: string | null;
+  status: ConnectionStatus;
+  connected_at: string | null;
+}
+
+interface RoutingRule {
+  id: string;
+  whatsapp_connection_id: string;
+  google_drive_account_id: string;
+  file_type: "image" | "video" | "audio" | "document" | null;
+  is_default: boolean;
+  is_active: boolean;
 }
 
 export default function Connections() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [connection, setConnection] = useState<ConnectionData | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [whatsappConnections, setWhatsappConnections] = useState<WhatsAppConnection[]>([]);
+  const [googleAccounts, setGoogleAccounts] = useState<GoogleDriveAccount[]>([]);
+  const [routingRules, setRoutingRules] = useState<RoutingRule[]>([]);
 
-  const loadConnections = async () => {
+  const loadConnections = useCallback(async () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('connections')
-        .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_connected_at, google_status, google_connected_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const [{ data: sub }, { data: wa }, { data: google }, { data: rules }] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("whatsapp_numbers_limit, google_accounts_limit")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("whatsapp_connections")
+          .select("id, label, phone_number_id, status, connected_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("google_drive_accounts")
+          .select("id, label, account_email, status, connected_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("media_routing_rules")
+          .select("id, whatsapp_connection_id, google_drive_account_id, file_type, is_default, is_active")
+          .eq("user_id", user.id),
+      ]);
 
-      if (error) throw error;
-      setConnection(data);
+      if (sub) {
+        setSubscription({
+          whatsapp_numbers_limit: sub.whatsapp_numbers_limit || 1,
+          google_accounts_limit: sub.google_accounts_limit || 1,
+        });
+      }
+      setWhatsappConnections((wa || []) as unknown as WhatsAppConnection[]);
+      setGoogleAccounts((google || []) as unknown as GoogleDriveAccount[]);
+      setRoutingRules((rules || []) as unknown as RoutingRule[]);
     } catch (error) {
-      console.error('Error loading connections:', error);
+      console.error(error);
+      toast.error("Erro ao carregar conexões");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     loadConnections();
-  }, [user]);
+  }, [loadConnections]);
 
-  const handleRefreshGoogle = async () => {
-    setIsRefreshing(true);
+  const connectedWhatsApp = useMemo(
+    () => whatsappConnections.filter((item) => item.status === "connected" || item.status === "pending").length,
+    [whatsappConnections],
+  );
+  const connectedGoogle = useMemo(
+    () => googleAccounts.filter((item) => item.status === "connected" || item.status === "pending").length,
+    [googleAccounts],
+  );
+  const activeRules = useMemo(
+    () => routingRules.filter((item) => item.is_active).length,
+    [routingRules],
+  );
+
+  const handleRefreshGoogle = async (accountId: string) => {
+    setIsRefreshing(accountId);
     try {
-      const { data, error } = await supabase.functions.invoke('google-oauth', {
-        body: { action: 'refresh' },
+      const { data, error } = await supabase.functions.invoke("google-oauth", {
+        body: { action: "refresh", accountId },
       });
-
       if (error) throw error;
-
-      if (data?.success) {
-        toast.success("Token do Google atualizado!");
-        await loadConnections();
-      } else {
-        toast.error(data?.error || "Erro ao atualizar token");
-      }
+      if (!data?.success) throw new Error(data?.error || "Erro ao atualizar token");
+      toast.success("Token Google atualizado!");
+      await loadConnections();
     } catch (error) {
-      console.error('Error refreshing token:', error);
+      console.error(error);
       toast.error("Erro ao atualizar token");
     } finally {
-      setIsRefreshing(false);
+      setIsRefreshing(null);
     }
   };
-
-  const whatsappStatus = connection?.whatsapp_status || 'disconnected';
-  const googleStatus = connection?.google_status || 'disconnected';
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return (
-          <Badge className="bg-primary/10 text-primary border-primary/20">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Conectado
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge variant="secondary">
-            <Clock className="h-3 w-3 mr-1" />
-            Pendente
-          </Badge>
-        );
-      case 'error':
-        return (
-          <Badge variant="destructive">
-            <XCircle className="h-3 w-3 mr-1" />
-            Erro
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="text-muted-foreground">
-            <XCircle className="h-3 w-3 mr-1" />
-            Não conectado
-          </Badge>
-        );
+    if (status === "connected") {
+      return (
+        <Badge className="bg-primary/10 text-primary border-primary/20">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Conectado
+        </Badge>
+      );
     }
+    if (status === "pending") {
+      return (
+        <Badge variant="secondary">
+          <Clock className="h-3 w-3 mr-1" />
+          Pendente
+        </Badge>
+      );
+    }
+    if (status === "error") {
+      return (
+        <Badge variant="destructive">
+          <XCircle className="h-3 w-3 mr-1" />
+          Erro
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        <XCircle className="h-3 w-3 mr-1" />
+        Não conectado
+      </Badge>
+    );
   };
+
+  const getRuleTypeLabel = (fileType: RoutingRule["file_type"]) => {
+    if (!fileType) return "Todos";
+    if (fileType === "image") return "Imagens";
+    if (fileType === "video") return "Vídeos";
+    if (fileType === "audio") return "Áudios";
+    return "Documentos";
+  };
+
+  const waLabelById = (id: string) =>
+    whatsappConnections.find((row) => row.id === id)?.label ||
+    whatsappConnections.find((row) => row.id === id)?.phone_number_id ||
+    id;
+
+  const googleLabelById = (id: string) =>
+    googleAccounts.find((row) => row.id === id)?.label ||
+    googleAccounts.find((row) => row.id === id)?.account_email ||
+    id;
 
   if (isLoading) {
     return (
@@ -128,20 +202,44 @@ export default function Connections() {
 
   return (
     <AppLayout>
-      {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Conexões
         </h1>
         <p className="text-muted-foreground">
-          Gerencie suas integrações com WhatsApp e Google Drive
+          Visão de múltiplos números WhatsApp, contas Google Drive e regras de roteamento.
         </p>
       </div>
 
-      {/* Connection Cards */}
+      <div className="grid gap-4 sm:grid-cols-3 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">WhatsApp conectados</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {connectedWhatsApp}/{subscription?.whatsapp_numbers_limit ?? 1}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Drives conectados</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {connectedGoogle}/{subscription?.google_accounts_limit ?? 1}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Regras ativas</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {activeRules}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2 mb-8">
-        {/* WhatsApp Card */}
-        <Card className="animate-fade-in" style={{ animationDelay: "100ms" }}>
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -149,37 +247,33 @@ export default function Connections() {
                   <MessageSquare className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">WhatsApp Business</CardTitle>
-                  <CardDescription>API Oficial do Meta</CardDescription>
+                  <CardTitle className="text-lg">Números WhatsApp</CardTitle>
+                  <CardDescription>Conexões por número</CardDescription>
                 </div>
               </div>
-              {getStatusBadge(whatsappStatus)}
+              <Button variant="outline" size="sm" onClick={() => navigate("/settings?tab=whatsapp")}>
+                <Settings className="h-4 w-4 mr-2" />
+                Gerenciar
+              </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {connection?.whatsapp_phone_number_id && (
-              <div className="text-sm text-muted-foreground">
-                Phone ID: <code className="text-foreground">{connection.whatsapp_phone_number_id}</code>
-              </div>
+          <CardContent className="space-y-3">
+            {whatsappConnections.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum número conectado.</p>
             )}
-            {connection?.whatsapp_connected_at && (
-              <div className="text-xs text-muted-foreground">
-                Conectado em: {new Date(connection.whatsapp_connected_at).toLocaleDateString('pt-BR')}
+            {whatsappConnections.map((item) => (
+              <div key={item.id} className="rounded-md border p-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">{item.label || item.phone_number_id}</p>
+                  <p className="text-xs text-muted-foreground">{item.phone_number_id}</p>
+                </div>
+                {getStatusBadge(item.status)}
               </div>
-            )}
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => navigate('/settings?tab=whatsapp')}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              {whatsappStatus === 'connected' ? 'Gerenciar' : whatsappStatus === 'pending' ? 'Completar configuração' : 'Configurar'}
-            </Button>
+            ))}
           </CardContent>
         </Card>
 
-        {/* Google Drive Card */}
-        <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -187,99 +281,72 @@ export default function Connections() {
                   <HardDrive className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Google Drive</CardTitle>
-                  <CardDescription>Armazenamento em nuvem</CardDescription>
+                  <CardTitle className="text-lg">Contas Google Drive</CardTitle>
+                  <CardDescription>Conexões por conta</CardDescription>
                 </div>
               </div>
-              {getStatusBadge(googleStatus)}
+              <Button variant="outline" size="sm" onClick={() => navigate("/settings?tab=google")}>
+                <Settings className="h-4 w-4 mr-2" />
+                Gerenciar
+              </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {connection?.google_connected_at && (
-              <div className="text-xs text-muted-foreground">
-                Conectado em: {new Date(connection.google_connected_at).toLocaleDateString('pt-BR')}
-              </div>
+          <CardContent className="space-y-3">
+            {googleAccounts.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma conta conectada.</p>
             )}
-            <div className="flex gap-2">
-              <Button 
-                variant="outline"
-                className="flex-1"
-                onClick={() => navigate('/settings?tab=google')}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                {googleStatus === 'connected' ? 'Gerenciar' : 'Configurar'}
-              </Button>
-              {googleStatus === 'connected' && (
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={handleRefreshGoogle}
-                  disabled={isRefreshing}
+            {googleAccounts.map((item) => (
+              <div key={item.id} className="rounded-md border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{item.label || "Conta Google"}</p>
+                    <p className="text-xs text-muted-foreground">{item.account_email || "Email não identificado"}</p>
+                  </div>
+                  {getStatusBadge(item.status)}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleRefreshGoogle(item.id)}
+                  disabled={isRefreshing === item.id}
                 >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing === item.id ? "animate-spin" : ""}`} />
+                  Renovar token
                 </Button>
-              )}
-            </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
 
-      {/* Connection Flow */}
-      <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
+      <Card>
         <CardHeader>
-          <CardTitle>Como funciona a integração</CardTitle>
-          <CardDescription>
-            Entenda o fluxo de automação do sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                whatsappStatus === "connected" ? "bg-primary/10" : "bg-muted"
-              }`}>
-                {whatsappStatus === "connected" ? (
-                  <CheckCircle2 className="h-6 w-6 text-primary" />
-                ) : (
-                  <XCircle className="h-6 w-6 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <p className="font-medium text-foreground">1. WhatsApp recebe mídia</p>
-                <p className="text-sm text-muted-foreground">Webhook processa a mensagem</p>
-              </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Roteamento ativo</CardTitle>
+              <CardDescription>Como as mídias são direcionadas para cada conta Drive</CardDescription>
             </div>
-
-            <ArrowRight className="hidden h-5 w-5 text-muted-foreground sm:block" />
-
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Clock className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground">2. Sistema processa</p>
-                <p className="text-sm text-muted-foreground">Download e validação</p>
-              </div>
-            </div>
-
-            <ArrowRight className="hidden h-5 w-5 text-muted-foreground sm:block" />
-
-            <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                googleStatus === "connected" ? "bg-primary/10" : "bg-muted"
-              }`}>
-                {googleStatus === "connected" ? (
-                  <CheckCircle2 className="h-6 w-6 text-primary" />
-                ) : (
-                  <XCircle className="h-6 w-6 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <p className="font-medium text-foreground">3. Salva no Drive</p>
-                <p className="text-sm text-muted-foreground">Organizado automaticamente</p>
-              </div>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/settings?tab=routing")}>
+              <LinkIcon className="h-4 w-4 mr-2" />
+              Editar regras
+            </Button>
           </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {routingRules.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhuma regra de roteamento configurada.</p>
+          )}
+          {routingRules.map((rule) => (
+            <div key={rule.id} className="rounded-md border p-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{waLabelById(rule.whatsapp_connection_id)} {"->"} {googleLabelById(rule.google_drive_account_id)}</p>
+                <p className="text-xs text-muted-foreground">{getRuleTypeLabel(rule.file_type)} {rule.is_default ? "• padrão" : ""}</p>
+              </div>
+              <Badge variant={rule.is_active ? "default" : "outline"}>
+                {rule.is_active ? "Ativa" : "Inativa"}
+              </Badge>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </AppLayout>

@@ -70,11 +70,32 @@ Deno.serve(async (req: Request) => {
     // =========================
     // Load connection
     // =========================
-    const { data: connection } = await supabaseAdmin
-      .from("connections")
-      .select("whatsapp_phone_number_id, whatsapp_access_token")
+    const { data: multiConnection } = await supabaseAdmin
+      .from("whatsapp_connections")
+      .select("id, phone_number_id, access_token")
       .eq("user_id", user.id)
-      .single();
+      .in("status", ["connected", "pending"])
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: legacyConnection } = multiConnection
+      ? { data: null }
+      : await supabaseAdmin
+          .from("connections")
+          .select("whatsapp_phone_number_id, whatsapp_access_token")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+    const connection = {
+      whatsapp_phone_number_id:
+        (multiConnection?.phone_number_id as string | null) ||
+        (legacyConnection?.whatsapp_phone_number_id as string | null),
+      whatsapp_access_token:
+        (multiConnection?.access_token as string | null) ||
+        (legacyConnection?.whatsapp_access_token as string | null),
+      whatsapp_connection_id: (multiConnection?.id as string | undefined) || undefined,
+    };
 
     if (
       !connection?.whatsapp_phone_number_id ||
@@ -156,6 +177,16 @@ Deno.serve(async (req: Request) => {
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
+
+    if (connection.whatsapp_connection_id) {
+      await supabaseAdmin
+        .from("whatsapp_connections")
+        .update({
+          status: "connected",
+          connected_at: new Date().toISOString(),
+        })
+        .eq("id", connection.whatsapp_connection_id);
+    }
 
     return json({
       success: true,

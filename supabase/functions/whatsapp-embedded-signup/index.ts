@@ -36,6 +36,21 @@ function friendlyError(code: string, details?: string): string {
   return ERROR_MESSAGES[code] || ERROR_MESSAGES.GENERIC_ERROR
 }
 
+async function getSubscriptionLimits(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+) {
+  const { data } = await adminClient
+    .from('subscriptions')
+    .select('whatsapp_numbers_limit')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  return {
+    whatsappNumbersLimit: Math.max(1, Number(data?.whatsapp_numbers_limit || 1)),
+  }
+}
+
 // =====================================================
 // MAIN HANDLER
 // =====================================================
@@ -170,22 +185,72 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 3. Save to database
+      if (!finalPhoneNumberId) {
+        return jsonError(
+          "Não foi possível identificar o Phone Number ID da conta WhatsApp. Conclua a configuração no Meta e tente novamente.",
+          400,
+        )
+      }
+
+      // 3. Validate plan limits and save to multi-connection table
+      const limits = await getSubscriptionLimits(adminClient, user.id)
+
+      const { count: activeConnectionsCount } = await adminClient
+        .from('whatsapp_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .in('status', ['connected', 'pending'])
+
+      const { data: existingByPhone } = finalPhoneNumberId
+        ? await adminClient
+            .from('whatsapp_connections')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('phone_number_id', finalPhoneNumberId)
+            .maybeSingle()
+        : { data: null }
+
+      const isNewPhone = !existingByPhone && Boolean(finalPhoneNumberId)
+      if (isNewPhone && (activeConnectionsCount || 0) >= limits.whatsappNumbersLimit) {
+        return jsonError(
+          `Limite do plano atingido: seu plano permite até ${limits.whatsappNumbersLimit} número(s) WhatsApp.`,
+          403,
+        )
+      }
+
+      const webhookVerifyToken =
+        Deno.env.get('WHATSAPP_WEBHOOK_VERIFY_TOKEN') || crypto.randomUUID().replace(/-/g, '')
+
       const { error: upsertError } = await adminClient
+        .from('whatsapp_connections')
+        .upsert({
+          user_id: user.id,
+          label: finalPhoneNumberId ? `WhatsApp ${finalPhoneNumberId.slice(-4)}` : 'WhatsApp',
+          access_token: accessToken,
+          business_account_id: finalWabaId || null,
+          phone_number_id: finalPhoneNumberId,
+          webhook_verify_token: webhookVerifyToken,
+          status: 'pending',
+          connected_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,phone_number_id' })
+
+      if (upsertError) {
+        console.error('[embedded-signup] DB upsert error:', upsertError)
+        return jsonError(friendlyError('GENERIC_ERROR', upsertError.message), 500)
+      }
+
+      // Legacy compatibility (current frontend reads this table)
+      await adminClient
         .from('connections')
         .upsert({
           user_id: user.id,
           whatsapp_access_token: accessToken,
           whatsapp_business_account_id: finalWabaId || null,
           whatsapp_phone_number_id: finalPhoneNumberId || null,
+          whatsapp_webhook_verify_token: webhookVerifyToken,
           whatsapp_status: 'pending',
           whatsapp_connected_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
-
-      if (upsertError) {
-        console.error('[embedded-signup] DB upsert error:', upsertError)
-        return jsonError(friendlyError('GENERIC_ERROR', upsertError.message), 500)
-      }
 
       // 4. Auto-configure webhook and register phone
       let webhookOk = false
@@ -256,6 +321,14 @@ Deno.serve(async (req) => {
         })
         .eq('user_id', user.id)
 
+      await adminClient
+        .from('whatsapp_connections')
+        .update({
+          status: finalStatus,
+        })
+        .eq('user_id', user.id)
+        .eq('phone_number_id', finalPhoneNumberId || '')
+
       // Log: signup completed
       await logEvent(adminClient, user.id, 'embedded_signup_completed', 'completed', 
         `WABA: ${finalWabaId || 'N/A'}, Phone: ${finalPhoneNumberId || 'N/A'}, Webhook: ${webhookOk}, PhoneReg: ${phoneRegOk}`)
@@ -287,6 +360,17 @@ Deno.serve(async (req) => {
     // ACTION: disconnect
     // =====================================================
     if (action === 'disconnect') {
+      await adminClient
+        .from('whatsapp_connections')
+        .update({
+          access_token: null,
+          business_account_id: null,
+          webhook_verify_token: null,
+          status: 'disconnected',
+          connected_at: null,
+        })
+        .eq('user_id', user.id)
+
       await adminClient
         .from('connections')
         .update({

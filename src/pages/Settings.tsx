@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -12,48 +13,92 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
-import { 
-  MessageSquare, 
-  HardDrive, 
+import {
+  MessageSquare,
+  HardDrive,
   FolderTree,
   Save,
-  CheckCircle2,
-  XCircle,
   Loader2,
   Shield,
+  Link as LinkIcon,
+  RefreshCw,
+  Trash2,
 } from "lucide-react";
 
-const VALID_TABS = ['whatsapp', 'google', 'general'] as const;
+const VALID_TABS = ["whatsapp", "google", "routing", "general"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
+type ConnectionStatus = "connected" | "disconnected" | "pending" | "error";
+type RuleFileType = "image" | "video" | "audio" | "document" | "all";
+
+interface SubscriptionInfo {
+  plan: string;
+  monthly_file_limit: number | null;
+  files_used_current_month: number | null;
+  whatsapp_numbers_limit: number;
+  google_accounts_limit: number;
+}
+
+interface WhatsAppConnection {
+  id: string;
+  label: string | null;
+  phone_number_id: string;
+  business_account_id: string | null;
+  status: ConnectionStatus;
+  connected_at: string | null;
+}
+
+interface GoogleDriveAccount {
+  id: string;
+  label: string | null;
+  account_email: string | null;
+  status: ConnectionStatus;
+  connected_at: string | null;
+  root_folder_path: string;
+}
+
+interface RoutingRule {
+  id: string;
+  whatsapp_connection_id: string;
+  google_drive_account_id: string;
+  file_type: "image" | "video" | "audio" | "document" | null;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface GeneralConfigState {
+  autoSyncEnabled: boolean;
+  syncImages: boolean;
+  syncVideos: boolean;
+  syncAudio: boolean;
+  syncDocuments: boolean;
+  folderStructure: string;
+  notificationOnError: boolean;
+  notificationOnSuccess: boolean;
+}
 
 export default function Settings() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (VALID_TABS.includes(searchParams.get('tab') as SettingsTab)
-    ? searchParams.get('tab')
-    : 'whatsapp') as SettingsTab;
+  const activeTab = (VALID_TABS.includes(searchParams.get("tab") as SettingsTab)
+    ? searchParams.get("tab")
+    : "whatsapp") as SettingsTab;
 
   const setActiveTab = (tab: string) => {
     setSearchParams({ tab }, { replace: true });
   };
 
-  const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState({
-    whatsapp: 'disconnected',
-    google: 'disconnected'
-  });
-  const [whatsappDetails, setWhatsappDetails] = useState({
-    phoneNumberId: '',
-    wabaId: '',
-  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshingGoogle, setIsRefreshingGoogle] = useState<string | null>(null);
 
-  const [googleConfig, setGoogleConfig] = useState({
-    redirectUri: `${window.location.origin}/oauth/callback`,
-    rootFolder: "/WhatsApp Uploads",
-  });
-
-  const [generalConfig, setGeneralConfig] = useState({
+  const [newGoogleLabel, setNewGoogleLabel] = useState("");
+  const [folderDrafts, setFolderDrafts] = useState<Record<string, string>>({});
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [whatsappConnections, setWhatsappConnections] = useState<WhatsAppConnection[]>([]);
+  const [googleAccounts, setGoogleAccounts] = useState<GoogleDriveAccount[]>([]);
+  const [routingRules, setRoutingRules] = useState<RoutingRule[]>([]);
+  const [generalConfig, setGeneralConfig] = useState<GeneralConfigState>({
     autoSyncEnabled: true,
     syncImages: true,
     syncVideos: true,
@@ -63,69 +108,118 @@ export default function Settings() {
     notificationOnError: true,
     notificationOnSuccess: false,
   });
+  const [newRule, setNewRule] = useState<{
+    whatsappConnectionId: string;
+    googleDriveAccountId: string;
+    fileType: RuleFileType;
+    isDefault: boolean;
+  }>({
+    whatsappConnectionId: "",
+    googleDriveAccountId: "",
+    fileType: "all",
+    isDefault: false,
+  });
 
-  // Load existing configuration
-  useEffect(() => {
-    const loadConfig = async () => {
-      if (!user) return;
+  const connectedWhatsAppCount = useMemo(
+    () => whatsappConnections.filter((item) => item.status === "connected" || item.status === "pending").length,
+    [whatsappConnections],
+  );
+  const connectedGoogleCount = useMemo(
+    () => googleAccounts.filter((item) => item.status === "connected" || item.status === "pending").length,
+    [googleAccounts],
+  );
 
-      try {
-        const { data: connection } = await supabase
-          .from('connections')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+  const loadConfig = useCallback(async () => {
+    if (!user) return;
 
-        if (connection) {
-          setConnectionStatus({
-            whatsapp: connection.whatsapp_status || 'disconnected',
-            google: connection.google_status || 'disconnected'
-          });
-          setWhatsappDetails({
-            phoneNumberId: connection.whatsapp_phone_number_id || '',
-            wabaId: connection.whatsapp_business_account_id || '',
-          });
-          setGoogleConfig({
-            redirectUri: connection.google_redirect_uri || `${window.location.origin}/oauth/callback`,
-            rootFolder: '/WhatsApp Uploads',
-          });
-        }
+    try {
+      const [
+        { data: subscriptionData },
+        { data: settingsData },
+        { data: waData },
+        { data: googleData },
+        { data: rulesData },
+      ] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("plan, monthly_file_limit, files_used_current_month, whatsapp_numbers_limit, google_accounts_limit")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("user_settings")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("whatsapp_connections")
+          .select("id, label, phone_number_id, business_account_id, status, connected_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("google_drive_accounts")
+          .select("id, label, account_email, status, connected_at, root_folder_path")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("media_routing_rules")
+          .select("id, whatsapp_connection_id, google_drive_account_id, file_type, is_default, is_active, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
 
-        const { data: settings } = await supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (settings) {
-          setGeneralConfig({
-            autoSyncEnabled: settings.auto_sync_enabled,
-            syncImages: settings.sync_images,
-            syncVideos: settings.sync_videos,
-            syncAudio: settings.sync_audio,
-            syncDocuments: settings.sync_documents,
-            folderStructure: settings.folder_structure,
-            notificationOnError: settings.notification_on_error,
-            notificationOnSuccess: settings.notification_on_success,
-          });
-        }
-      } catch (error) {
-        console.error('Error loading config:', error);
-      } finally {
-        setIsLoading(false);
+      if (subscriptionData) {
+        setSubscription({
+          plan: subscriptionData.plan || "starter",
+          monthly_file_limit: subscriptionData.monthly_file_limit,
+          files_used_current_month: subscriptionData.files_used_current_month,
+          whatsapp_numbers_limit: subscriptionData.whatsapp_numbers_limit || 1,
+          google_accounts_limit: subscriptionData.google_accounts_limit || 1,
+        });
       }
-    };
 
-    loadConfig();
+      if (settingsData) {
+        setGeneralConfig({
+          autoSyncEnabled: settingsData.auto_sync_enabled,
+          syncImages: settingsData.sync_images,
+          syncVideos: settingsData.sync_videos,
+          syncAudio: settingsData.sync_audio,
+          syncDocuments: settingsData.sync_documents,
+          folderStructure: settingsData.folder_structure,
+          notificationOnError: settingsData.notification_on_error,
+          notificationOnSuccess: settingsData.notification_on_success,
+        });
+      }
+
+      const waRows = (waData || []) as unknown as WhatsAppConnection[];
+      const googleRows = (googleData || []) as unknown as GoogleDriveAccount[];
+      const ruleRows = (rulesData || []) as unknown as RoutingRule[];
+
+      setWhatsappConnections(waRows);
+      setGoogleAccounts(googleRows);
+      setRoutingRules(ruleRows);
+      setFolderDrafts(
+        Object.fromEntries(
+          googleRows.map((account) => [account.id, account.root_folder_path || "/WhatsApp Uploads"]),
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao carregar configurações");
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
 
   const handleSaveGeneral = async () => {
     if (!user) return;
     setIsSaving(true);
-
     try {
       const { error } = await supabase
-        .from('user_settings')
+        .from("user_settings")
         .upsert({
           user_id: user.id,
           auto_sync_enabled: generalConfig.autoSyncEnabled,
@@ -136,13 +230,11 @@ export default function Settings() {
           folder_structure: generalConfig.folderStructure,
           notification_on_error: generalConfig.notificationOnError,
           notification_on_success: generalConfig.notificationOnSuccess,
-        }, { onConflict: 'user_id' });
-
+        }, { onConflict: "user_id" });
       if (error) throw error;
-
       toast.success("Configurações gerais salvas!");
     } catch (error) {
-      console.error('Error saving general config:', error);
+      console.error(error);
       toast.error("Erro ao salvar configurações");
     } finally {
       setIsSaving(false);
@@ -151,49 +243,198 @@ export default function Settings() {
 
   const handleAuthorizeGoogle = async () => {
     toast.info("Iniciando autenticação OAuth...");
-
     try {
-      const { data, error } = await supabase.functions.invoke('google-oauth', {
+      localStorage.setItem("google_oauth_account_label", newGoogleLabel.trim() || "Drive Principal");
+      const { data, error } = await supabase.functions.invoke("google-oauth", {
         body: {
-          action: 'authorize',
-          redirectUri: googleConfig.redirectUri,
+          action: "authorize",
+          redirectUri: `${window.location.origin}/oauth/callback`,
+          accountLabel: newGoogleLabel.trim() || undefined,
         },
       });
-
       if (error) throw error;
-
       if (data?.authUrl) {
         window.location.href = data.authUrl;
       }
     } catch (error) {
-      console.error('Error starting OAuth:', error);
+      console.error(error);
       toast.error("Erro ao iniciar autenticação");
     }
   };
 
-  const handleWhatsAppConnected = (data: any) => {
-    setConnectionStatus(prev => ({ ...prev, whatsapp: data.status || 'connected' }));
-    setWhatsappDetails({
-      phoneNumberId: data.phone_number_id || '',
-      wabaId: data.waba_id || '',
-    });
+  const handleWhatsAppConnected = async () => {
+    await loadConfig();
+    toast.success("Conexão WhatsApp atualizada!");
   };
 
-  const handleDisconnectWhatsApp = async () => {
+  const handleDisconnectWhatsApp = async (connectionId: string) => {
     try {
-      const { error } = await supabase.functions.invoke('whatsapp-embedded-signup', {
-        body: { action: 'disconnect' },
-      });
-
+      const { error } = await supabase
+        .from("whatsapp_connections")
+        .update({
+          status: "disconnected",
+          access_token: null,
+          business_account_id: null,
+          webhook_verify_token: null,
+          connected_at: null,
+        })
+        .eq("id", connectionId);
       if (error) throw error;
-
-      setConnectionStatus(prev => ({ ...prev, whatsapp: 'disconnected' }));
-      setWhatsappDetails({ phoneNumberId: '', wabaId: '' });
-      toast.success("WhatsApp desconectado.");
-    } catch (err) {
+      await loadConfig();
+      toast.success("Número WhatsApp desconectado.");
+    } catch (error) {
+      console.error(error);
       toast.error("Erro ao desconectar WhatsApp");
     }
   };
+
+  const handleDisconnectGoogle = async (accountId: string) => {
+    try {
+      const { error } = await supabase
+        .from("google_drive_accounts")
+        .update({
+          status: "disconnected",
+          access_token: null,
+          refresh_token: null,
+          token_expires_at: null,
+          connected_at: null,
+        })
+        .eq("id", accountId);
+      if (error) throw error;
+      await loadConfig();
+      toast.success("Conta Google Drive desconectada.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao desconectar conta Google");
+    }
+  };
+
+  const handleRefreshGoogleAccount = async (accountId: string) => {
+    setIsRefreshingGoogle(accountId);
+    try {
+      const { data, error } = await supabase.functions.invoke("google-oauth", {
+        body: { action: "refresh", accountId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Falha ao renovar token");
+      await loadConfig();
+      toast.success("Token Google renovado!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao renovar token Google");
+    } finally {
+      setIsRefreshingGoogle(null);
+    }
+  };
+
+  const handleSaveGoogleFolder = async (accountId: string) => {
+    const folderPath = (folderDrafts[accountId] || "").trim() || "/WhatsApp Uploads";
+    try {
+      const { error } = await supabase
+        .from("google_drive_accounts")
+        .update({ root_folder_path: folderPath })
+        .eq("id", accountId);
+      if (error) throw error;
+      await loadConfig();
+      toast.success("Pasta raiz atualizada.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar pasta raiz");
+    }
+  };
+
+  const handleCreateRoutingRule = async () => {
+    if (!user) return;
+    if (!newRule.whatsappConnectionId || !newRule.googleDriveAccountId) {
+      toast.error("Selecione o número WhatsApp e a conta Google Drive.");
+      return;
+    }
+
+    try {
+      if (newRule.isDefault) {
+        await supabase
+          .from("media_routing_rules")
+          .update({ is_default: false })
+          .eq("user_id", user.id)
+          .eq("whatsapp_connection_id", newRule.whatsappConnectionId);
+      }
+
+      const payload = {
+        user_id: user.id,
+        whatsapp_connection_id: newRule.whatsappConnectionId,
+        google_drive_account_id: newRule.googleDriveAccountId,
+        file_type: newRule.fileType === "all" ? null : newRule.fileType,
+        is_default: newRule.isDefault || newRule.fileType === "all",
+        is_active: true,
+      };
+
+      const { error } = await supabase.from("media_routing_rules").insert(payload);
+      if (error) throw error;
+
+      setNewRule({
+        whatsappConnectionId: "",
+        googleDriveAccountId: "",
+        fileType: "all",
+        isDefault: false,
+      });
+      await loadConfig();
+      toast.success("Regra de roteamento criada.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao criar regra de roteamento");
+    }
+  };
+
+  const handleToggleRoutingRule = async (ruleId: string, active: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("media_routing_rules")
+        .update({ is_active: active })
+        .eq("id", ruleId);
+      if (error) throw error;
+      await loadConfig();
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao atualizar regra");
+    }
+  };
+
+  const handleDeleteRoutingRule = async (ruleId: string) => {
+    try {
+      const { error } = await supabase.from("media_routing_rules").delete().eq("id", ruleId);
+      if (error) throw error;
+      await loadConfig();
+      toast.success("Regra removida.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao remover regra");
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    if (status === "connected") return <Badge className="bg-primary/10 text-primary border-primary/20">Conectado</Badge>;
+    if (status === "pending") return <Badge variant="secondary">Pendente</Badge>;
+    if (status === "error") return <Badge variant="destructive">Erro</Badge>;
+    return <Badge variant="outline">Desconectado</Badge>;
+  };
+
+  const ruleTypeLabel = (fileType: RoutingRule["file_type"]) => {
+    if (!fileType) return "Todos os tipos";
+    if (fileType === "image") return "Imagens";
+    if (fileType === "video") return "Vídeos";
+    if (fileType === "audio") return "Áudios";
+    return "Documentos";
+  };
+
+  const whatsappLabelById = (id: string) =>
+    whatsappConnections.find((item) => item.id === id)?.label ||
+    whatsappConnections.find((item) => item.id === id)?.phone_number_id ||
+    id;
+
+  const googleLabelById = (id: string) =>
+    googleAccounts.find((item) => item.id === id)?.label ||
+    googleAccounts.find((item) => item.id === id)?.account_email ||
+    id;
 
   if (isLoading) {
     return (
@@ -212,12 +453,12 @@ export default function Settings() {
           Configurações
         </h1>
         <p className="text-muted-foreground">
-          Configure suas integrações e preferências do sistema
+          Gerencie múltiplos números WhatsApp, contas Google Drive e regras de roteamento.
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="whatsapp" className="gap-2">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">WhatsApp</span>
@@ -226,222 +467,271 @@ export default function Settings() {
             <HardDrive className="h-4 w-4" />
             <span className="hidden sm:inline">Google Drive</span>
           </TabsTrigger>
+          <TabsTrigger value="routing" className="gap-2">
+            <LinkIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Roteamento</span>
+          </TabsTrigger>
           <TabsTrigger value="general" className="gap-2">
             <FolderTree className="h-4 w-4" />
             <span className="hidden sm:inline">Geral</span>
           </TabsTrigger>
         </TabsList>
 
-        {/* WhatsApp Configuration — Embedded Signup */}
         <TabsContent value="whatsapp" className="space-y-6">
-          <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+          <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle>WhatsApp Business</CardTitle>
-                    <CardDescription>
-                      Conecte sua conta do WhatsApp Business em 1 clique
-                    </CardDescription>
-                  </div>
-                </div>
-                <Badge variant="outline" className="gap-1">
-                  {connectionStatus.whatsapp === 'connected' ? (
-                    <>
-                      <CheckCircle2 className="h-3 w-3 text-primary" />
-                      Conectado
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-3 w-3 text-destructive" />
-                      Não conectado
-                    </>
-                  )}
-                </Badge>
-              </div>
+              <CardTitle>Números WhatsApp</CardTitle>
+              <CardDescription>
+                Limite do plano: {connectedWhatsAppCount}/{subscription?.whatsapp_numbers_limit ?? 1} conectados/pendentes
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {connectionStatus.whatsapp === 'connected' ? (
-                <div className="space-y-4">
-                  <Alert className="border-primary/30 bg-primary/5">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                    <AlertTitle>WhatsApp conectado</AlertTitle>
-                    <AlertDescription>
-                      Sua conta está recebendo mídias automaticamente. O webhook foi configurado pelo sistema.
-                    </AlertDescription>
-                  </Alert>
-
-                  {(whatsappDetails.phoneNumberId || whatsappDetails.wabaId) && (
-                    <div className="rounded-lg bg-muted p-4 space-y-2 text-sm">
-                      {whatsappDetails.phoneNumberId && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Phone Number ID:</span>
-                          <code className="text-xs bg-background px-2 py-0.5 rounded">{whatsappDetails.phoneNumberId}</code>
-                        </div>
-                      )}
-                      {whatsappDetails.wabaId && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">WABA ID:</span>
-                          <code className="text-xs bg-background px-2 py-0.5 rounded">{whatsappDetails.wabaId}</code>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <Button variant="destructive" size="sm" onClick={handleDisconnectWhatsApp}>
-                    Desconectar WhatsApp
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Conecte sua conta do WhatsApp Business de forma automática. 
-                    O sistema irá configurar o webhook, registrar o número e iniciar o recebimento de mídias — tudo sem sair do app.
-                  </p>
-                  <WhatsAppConnectButton
-                    onSuccess={handleWhatsAppConnected}
-                    currentStatus={connectionStatus.whatsapp as any}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Google Drive Configuration */}
-        <TabsContent value="google" className="space-y-6">
-          <Card className="animate-fade-in" style={{ animationDelay: '400ms' }}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <HardDrive className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle>Google Drive</CardTitle>
-                    <CardDescription>
-                      Conecte sua conta para salvar mídias automaticamente
-                    </CardDescription>
-                  </div>
-                </div>
-                <Badge variant="outline" className="gap-1">
-                  {connectionStatus.google === 'connected' ? (
-                    <>
-                      <CheckCircle2 className="h-3 w-3 text-primary" />
-                      Conectado
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-3 w-3 text-destructive" />
-                      Não conectado
-                    </>
-                  )}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {connectionStatus.google === 'connected' ? (
-                <Alert className="border-primary/30 bg-primary/5">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <AlertTitle>Google Drive conectado</AlertTitle>
+            <CardContent className="space-y-4">
+              <WhatsAppConnectButton onSuccess={handleWhatsAppConnected} currentStatus={"disconnected"} />
+              {connectedWhatsAppCount >= (subscription?.whatsapp_numbers_limit ?? 1) && (
+                <Alert>
+                  <AlertTitle>Limite do plano atingido</AlertTitle>
                   <AlertDescription>
-                    Suas mídias serão salvas automaticamente na pasta <code>/WhatsApp Uploads</code>.
+                    Faça upgrade para conectar mais números WhatsApp.
                   </AlertDescription>
                 </Alert>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Clique no botão abaixo para autorizar o acesso ao Google Drive.
-                    Suas credenciais são gerenciadas de forma segura pelo sistema.
-                  </p>
-                  <Button onClick={handleAuthorizeGoogle} className="w-full sm:w-auto">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Conectar Google Drive
-                  </Button>
-                </div>
               )}
-
-              <div className="rounded-lg bg-muted p-4 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Pasta de destino</p>
-                <code className="text-sm font-mono text-foreground">{googleConfig.rootFolder}</code>
+              <div className="space-y-3">
+                {whatsappConnections.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum número conectado.</p>
+                )}
+                {whatsappConnections.map((item) => (
+                  <div key={item.id} className="rounded-lg border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{item.label || `WhatsApp ${item.phone_number_id.slice(-4)}`}</p>
+                        <p className="text-xs text-muted-foreground">{item.phone_number_id}</p>
+                      </div>
+                      {statusBadge(item.status)}
+                    </div>
+                    <Button variant="destructive" size="sm" onClick={() => handleDisconnectWhatsApp(item.id)}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Desconectar
+                    </Button>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* General Configuration */}
+        <TabsContent value="google" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Contas Google Drive</CardTitle>
+              <CardDescription>
+                Limite do plano: {connectedGoogleCount}/{subscription?.google_accounts_limit ?? 1} conectadas/pendentes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Input
+                  placeholder="Rótulo da nova conta (ex: Financeiro)"
+                  value={newGoogleLabel}
+                  onChange={(event) => setNewGoogleLabel(event.target.value)}
+                />
+                <Button onClick={handleAuthorizeGoogle}>
+                  <Shield className="mr-2 h-4 w-4" />
+                  Conectar Google Drive
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {googleAccounts.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhuma conta Google Drive conectada.</p>
+                )}
+                {googleAccounts.map((account) => (
+                  <div key={account.id} className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{account.label || "Conta Google Drive"}</p>
+                        <p className="text-xs text-muted-foreground">{account.account_email || "Email não identificado"}</p>
+                      </div>
+                      {statusBadge(account.status)}
+                    </div>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                      <Input
+                        value={folderDrafts[account.id] || "/WhatsApp Uploads"}
+                        onChange={(event) =>
+                          setFolderDrafts((prev) => ({ ...prev, [account.id]: event.target.value }))
+                        }
+                        placeholder="/WhatsApp Uploads"
+                      />
+                      <Button variant="outline" onClick={() => handleSaveGoogleFolder(account.id)}>
+                        Salvar pasta
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleRefreshGoogleAccount(account.id)}
+                        disabled={isRefreshingGoogle === account.id}
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshingGoogle === account.id ? "animate-spin" : ""}`} />
+                        Renovar token
+                      </Button>
+                      <Button variant="destructive" onClick={() => handleDisconnectGoogle(account.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Desconectar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="routing" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Regras de roteamento</CardTitle>
+              <CardDescription>
+                Defina para qual conta Google cada número WhatsApp envia mídias, por tipo de arquivo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Número WhatsApp</Label>
+                  <select
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    value={newRule.whatsappConnectionId}
+                    onChange={(event) =>
+                      setNewRule((prev) => ({ ...prev, whatsappConnectionId: event.target.value }))
+                    }
+                  >
+                    <option value="">Selecione</option>
+                    {whatsappConnections.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label || item.phone_number_id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conta Google Drive</Label>
+                  <select
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    value={newRule.googleDriveAccountId}
+                    onChange={(event) =>
+                      setNewRule((prev) => ({ ...prev, googleDriveAccountId: event.target.value }))
+                    }
+                  >
+                    <option value="">Selecione</option>
+                    {googleAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.label || account.account_email || account.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo de arquivo</Label>
+                  <select
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    value={newRule.fileType}
+                    onChange={(event) =>
+                      setNewRule((prev) => ({ ...prev, fileType: event.target.value as RuleFileType }))
+                    }
+                  >
+                    <option value="all">Todos</option>
+                    <option value="image">Imagens</option>
+                    <option value="video">Vídeos</option>
+                    <option value="audio">Áudios</option>
+                    <option value="document">Documentos</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <Label>Marcar como regra padrão</Label>
+                  <Switch
+                    checked={newRule.isDefault}
+                    onCheckedChange={(checked) => setNewRule((prev) => ({ ...prev, isDefault: checked }))}
+                  />
+                </div>
+              </div>
+              <Button onClick={handleCreateRoutingRule}>
+                <LinkIcon className="mr-2 h-4 w-4" />
+                Criar regra
+              </Button>
+
+              <div className="space-y-3 pt-2">
+                {routingRules.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhuma regra criada.</p>
+                )}
+                {routingRules.map((rule) => (
+                  <div key={rule.id} className="rounded-lg border p-4 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{whatsappLabelById(rule.whatsapp_connection_id)} {"->"} {googleLabelById(rule.google_drive_account_id)}</p>
+                        <p className="text-xs text-muted-foreground">{ruleTypeLabel(rule.file_type)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {rule.is_default && <Badge>Padrão</Badge>}
+                        <Switch
+                          checked={rule.is_active}
+                          onCheckedChange={(checked) => handleToggleRoutingRule(rule.id, checked)}
+                        />
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteRoutingRule(rule.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="general" className="space-y-6">
-          <Card className="animate-fade-in" style={{ animationDelay: '500ms' }}>
+          <Card>
             <CardHeader>
               <CardTitle>Sincronização</CardTitle>
-              <CardDescription>
-                Configure quais tipos de mídia serão sincronizados
-              </CardDescription>
+              <CardDescription>Configure quais tipos de mídia serão sincronizados</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Sincronização automática</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Sincroniza automaticamente ao receber mídias
-                  </p>
+                  <p className="text-xs text-muted-foreground">Sincroniza automaticamente ao receber mídias</p>
                 </div>
                 <Switch
                   checked={generalConfig.autoSyncEnabled}
-                  onCheckedChange={(checked) =>
-                    setGeneralConfig({ ...generalConfig, autoSyncEnabled: checked })
-                  }
+                  onCheckedChange={(checked) => setGeneralConfig((prev) => ({ ...prev, autoSyncEnabled: checked }))}
                 />
               </div>
 
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Sincronizar imagens</Label>
-                </div>
+                <Label>Sincronizar imagens</Label>
                 <Switch
                   checked={generalConfig.syncImages}
-                  onCheckedChange={(checked) =>
-                    setGeneralConfig({ ...generalConfig, syncImages: checked })
-                  }
+                  onCheckedChange={(checked) => setGeneralConfig((prev) => ({ ...prev, syncImages: checked }))}
                 />
               </div>
-
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Sincronizar vídeos</Label>
-                </div>
+                <Label>Sincronizar vídeos</Label>
                 <Switch
                   checked={generalConfig.syncVideos}
-                  onCheckedChange={(checked) =>
-                    setGeneralConfig({ ...generalConfig, syncVideos: checked })
-                  }
+                  onCheckedChange={(checked) => setGeneralConfig((prev) => ({ ...prev, syncVideos: checked }))}
                 />
               </div>
-
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Sincronizar áudios</Label>
-                </div>
+                <Label>Sincronizar áudios</Label>
                 <Switch
                   checked={generalConfig.syncAudio}
-                  onCheckedChange={(checked) =>
-                    setGeneralConfig({ ...generalConfig, syncAudio: checked })
-                  }
+                  onCheckedChange={(checked) => setGeneralConfig((prev) => ({ ...prev, syncAudio: checked }))}
                 />
               </div>
-
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Sincronizar documentos</Label>
-                </div>
+                <Label>Sincronizar documentos</Label>
                 <Switch
                   checked={generalConfig.syncDocuments}
-                  onCheckedChange={(checked) =>
-                    setGeneralConfig({ ...generalConfig, syncDocuments: checked })
-                  }
+                  onCheckedChange={(checked) => setGeneralConfig((prev) => ({ ...prev, syncDocuments: checked }))}
                 />
               </div>
 
@@ -454,42 +744,44 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          <Card className="animate-fade-in" style={{ animationDelay: '600ms' }}>
+          <Card>
             <CardHeader>
               <CardTitle>Notificações</CardTitle>
-              <CardDescription>
-                Configure quando receber notificações
-              </CardDescription>
+              <CardDescription>Configure quando receber notificações</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Notificar em erros</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Receba alertas quando houver falhas na sincronização
-                  </p>
-                </div>
+                <Label>Notificar em erros</Label>
                 <Switch
                   checked={generalConfig.notificationOnError}
                   onCheckedChange={(checked) =>
-                    setGeneralConfig({ ...generalConfig, notificationOnError: checked })
+                    setGeneralConfig((prev) => ({ ...prev, notificationOnError: checked }))
                   }
                 />
               </div>
-
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Notificar em sucesso</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Receba alertas quando arquivos forem sincronizados
-                  </p>
-                </div>
+                <Label>Notificar em sucesso</Label>
                 <Switch
                   checked={generalConfig.notificationOnSuccess}
                   onCheckedChange={(checked) =>
-                    setGeneralConfig({ ...generalConfig, notificationOnSuccess: checked })
+                    setGeneralConfig((prev) => ({ ...prev, notificationOnSuccess: checked }))
                   }
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Consumo do plano</CardTitle>
+              <CardDescription>Acompanhamento de arquivos processados no ciclo atual.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between text-sm">
+                <span>Plano atual: <strong>{subscription?.plan || "starter"}</strong></span>
+                <span>
+                  {subscription?.files_used_current_month ?? 0} / {subscription?.monthly_file_limit ?? "ilimitado"} arquivos
+                </span>
               </div>
             </CardContent>
           </Card>

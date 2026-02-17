@@ -14,6 +14,23 @@ Este script cria:
 ### 2. Configurar RLS (Row Level Security)
 
 Execute o arquivo `sql/002_rls_policies.sql` no **SQL Editor** do Supabase.
+### 2.1 Migrações complementares (obrigatórias em produção)
+
+Execute também, nesta ordem:
+
+1. `sql/003_health_monitoring.sql`
+2. `sql/005_email_notifications.sql`
+3. `sql/006_align_user_settings.sql`
+4. `sql/007_b2b_plan_enforcement_and_multi_integrations.sql`
+5. `sql/008_admin_read_policies_for_b2b_management.sql`
+
+Essas migrações ativam:
+- monitoramento de integrações;
+- campos atuais do frontend em `user_settings`;
+- limites por plano (`monthly_file_limit`, contas WhatsApp/Drive);
+- suporte a múltiplos números WhatsApp e múltiplas contas Google Drive;
+- roteamento WhatsApp -> Google Drive por regra.
+
 
 Este script configura:
 - Função `has_role()` para verificação de permissões
@@ -58,6 +75,7 @@ No dashboard do Supabase: **Project Settings > Edge Functions > Secrets**. Adici
 |----------|-------------|-----------|
 | `SUPABASE_ANON_KEY` | Sim (reprocess-media, whatsapp-verify-status) | **Chave anon** do projeto: Project Settings → API → anon public. Usada para validar JWT do usuário (`getUser()`); **nunca** use SERVICE_ROLE_KEY para auth. |
 | `WHATSAPP_APP_SECRET` | Sim (webhook POST) | **App Secret** do app no Meta: [developers.facebook.com](https://developers.facebook.com) → Seu App → Configurações do app → Básico → Chave secreta do app. Usado para validar a assinatura `x-hub-signature-256` nas requisições POST do webhook. Sem ela, o webhook retorna **503** (Server misconfiguration). |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Recomendado (webhook GET) | Token global para verificação do webhook (hub.verify_token). Em ambiente multi-tenant é a forma mais simples e segura de validação no callback único do projeto. |
 | `GOOGLE_CLIENT_ID` | Sim (process-media) | Client ID do OAuth 2.0 no Google Cloud Console (renovação de token no process-media). |
 | `GOOGLE_CLIENT_SECRET` | Sim (process-media) | Client Secret do OAuth 2.0 no Google Cloud Console. |
 

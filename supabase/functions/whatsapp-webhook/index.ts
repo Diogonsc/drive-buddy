@@ -111,6 +111,39 @@ function getExtensionFromMime(mime: string): string {
   return map[mime] || 'bin'
 }
 
+async function findWhatsAppConnectionByPhoneNumber(
+  supabase: ReturnType<typeof createClient>,
+  phoneNumberId: string,
+) {
+  const { data: multiConn } = await supabase
+    .from('whatsapp_connections')
+    .select('id, user_id, access_token')
+    .eq('phone_number_id', phoneNumberId)
+    .maybeSingle()
+
+  if (multiConn) {
+    return {
+      connectionId: multiConn.id as string,
+      userId: multiConn.user_id as string,
+      accessToken: (multiConn.access_token as string | null) || null,
+    }
+  }
+
+  const { data: legacyConn } = await supabase
+    .from('connections')
+    .select('user_id, whatsapp_access_token')
+    .eq('whatsapp_phone_number_id', phoneNumberId)
+    .maybeSingle()
+
+  if (!legacyConn) return null
+
+  return {
+    connectionId: null,
+    userId: legacyConn.user_id as string,
+    accessToken: (legacyConn.whatsapp_access_token as string | null) || null,
+  }
+}
+
 // =====================================================
 // SERVER
 // =====================================================
@@ -135,6 +168,27 @@ Deno.serve(async req => {
     const challenge = url.searchParams.get('hub.challenge')
 
     if (mode === 'subscribe' && token != null && challenge != null) {
+      const globalVerifyToken = Deno.env.get('WHATSAPP_WEBHOOK_VERIFY_TOKEN')
+      if (globalVerifyToken && token === globalVerifyToken) {
+        return new Response(challenge, {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      }
+
+      const { data: multiConnection } = await supabase
+        .from('whatsapp_connections')
+        .select('user_id')
+        .eq('webhook_verify_token', token)
+        .maybeSingle()
+
+      if (multiConnection) {
+        return new Response(challenge, {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      }
+
       const { data } = await supabase
         .from('connections')
         .select('user_id')
@@ -184,11 +238,10 @@ Deno.serve(async req => {
         const { metadata, messages, contacts } = change.value
         if (!messages) continue
 
-        const { data: connection } = await supabase
-          .from('connections')
-          .select('user_id, whatsapp_access_token')
-          .eq('whatsapp_phone_number_id', metadata.phone_number_id)
-          .single()
+        const connection = await findWhatsAppConnectionByPhoneNumber(
+          supabase,
+          metadata.phone_number_id,
+        )
 
         if (!connection) continue
 
@@ -219,13 +272,14 @@ Deno.serve(async req => {
 
           const extension = getExtensionFromMime(media.mime_type)
           const filename =
-            (message as any).document?.filename ||
+            message.document?.filename ||
             `${message.type}_${message.id}.${extension}`
 
           const { data: mediaFile } = await supabase
             .from('media_files')
             .insert({
-              user_id: connection.user_id,
+              user_id: connection.userId,
+              whatsapp_connection_id: connection.connectionId,
               whatsapp_media_id: media.id,
               whatsapp_message_id: message.id,
               sender_phone: message.from,
@@ -251,8 +305,18 @@ Deno.serve(async req => {
               whatsapp_connected_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
-            .eq('user_id', connection.user_id)
+            .eq('user_id', connection.userId)
             .eq('whatsapp_status', 'pending')
+
+          if (connection.connectionId) {
+            await supabase
+              .from('whatsapp_connections')
+              .update({
+                status: 'connected',
+                connected_at: new Date().toISOString(),
+              })
+              .eq('id', connection.connectionId)
+          }
 
           // 🔄 Processamento assíncrono (não aguardar — evita timeout do webhook no Meta)
           supabase.functions.invoke('process-media', {
