@@ -14,7 +14,7 @@ export function InstallBanner() {
   // iOS instructions
   if (isIOS) {
     return (
-      <Card className="mx-4 mt-4 border-primary/30 bg-primary/5">
+      <Card className="border-primary/30 bg-primary/5">
         <CardContent className="flex items-start gap-3 p-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary">
             <FaCloud className="h-5 w-5 text-primary-foreground" />
@@ -43,7 +43,7 @@ export function InstallBanner() {
   if (!canPrompt) return null;
 
   return (
-    <Card className="mx-4 mt-4 border-primary/30 bg-primary/5">
+    <Card className="border-primary/30 bg-primary/5">
       <CardContent className="flex items-center gap-3 p-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary">
           <HiOutlineDevicePhoneMobile className="h-5 w-5 text-primary-foreground" />
