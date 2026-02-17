@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { OfflineGate } from "@/components/pwa/OfflineGate";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import Index from "./pages/Index";
@@ -33,6 +34,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <OfflineGate>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -67,6 +69,7 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      </OfflineGate>
     </TooltipProvider>
   </QueryClientProvider>
 );
