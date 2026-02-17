@@ -78,135 +78,141 @@ export function OnboardingWizard({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-xl md:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl">
-            Configuração Inicial
-          </DialogTitle>
-          <DialogDescription>
-            Conecte suas integrações em poucos cliques
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="!grid !gap-0 !p-0 w-screen max-w-none h-[100dvh] sm:rounded-none">
+        <div className="flex h-full flex-col">
+          <div className="border-b px-6 pb-4 pt-6">
+            <DialogHeader>
+              <DialogTitle className="text-xl">
+                Configuração Inicial
+              </DialogTitle>
+              <DialogDescription>
+                Conecte suas integrações em poucos cliques
+              </DialogDescription>
+            </DialogHeader>
 
-        {/* Stepper */}
-        <div className="flex items-center gap-2 py-2">
-          {STEPS.map((step, i) => {
-            const Icon = step.icon;
-            const isActive = i === currentStep;
-            const isDone = i < currentStep;
-            return (
-              <div key={step.id} className="flex items-center gap-2 flex-1">
-                <button
-                  onClick={() => setCurrentStep(i)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors w-full",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : isDone
-                      ? "bg-primary/5 text-primary/70"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {isDone ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  ) : (
-                    <Icon className="h-4 w-4 shrink-0" />
-                  )}
-                  <span className="hidden sm:inline truncate">{step.title}</span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        <Progress value={progress} className="h-1.5" />
-
-        {/* Step Content */}
-        <div className="min-h-[200px] py-4">
-          {currentStep === 0 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Conecte sua conta do WhatsApp Business em 1 clique.
-                O sistema configura tudo automaticamente — webhook, número e permissões.
-              </p>
-
-              <WhatsAppConnectButton
-                onSuccess={handleWhatsAppSuccess}
-                currentStatus={isWhatsAppDone ? 'connected' : 'disconnected'}
-              />
+            {/* Stepper */}
+            <div className="mt-4 flex items-center gap-2 py-2">
+              {STEPS.map((step, i) => {
+                const Icon = step.icon;
+                const isActive = i === currentStep;
+                const isDone = i < currentStep;
+                return (
+                  <div key={step.id} className="flex flex-1 items-center gap-2">
+                    <button
+                      onClick={() => setCurrentStep(i)}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : isDone
+                          ? "bg-primary/5 text-primary/70"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <Icon className="h-4 w-4 shrink-0" />
+                      )}
+                      <span className="hidden sm:inline truncate">{step.title}</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          )}
+            <Progress value={progress} className="h-1.5" />
+          </div>
 
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Conecte sua conta do Google Drive para armazenar as mídias
-                recebidas automaticamente. Basta autorizar com um clique.
-              </p>
+          {/* Step Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {currentStep === 0 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Conecte sua conta do WhatsApp Business em 1 clique.
+                  O sistema configura tudo automaticamente — webhook, número e permissões.
+                </p>
 
-              {googleDriveConnected ? (
-                <div className="flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4">
-                  <CheckCircle2 className="h-5 w-5" />
-                  Google Drive conectado com sucesso!
+                <WhatsAppConnectButton
+                  onSuccess={handleWhatsAppSuccess}
+                  currentStatus={isWhatsAppDone ? 'connected' : 'disconnected'}
+                />
+              </div>
+            )}
+
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Conecte sua conta do Google Drive para armazenar as mídias
+                  recebidas automaticamente. Basta autorizar com um clique.
+                </p>
+
+                {googleDriveConnected ? (
+                  <div className="flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4">
+                    <CheckCircle2 className="h-5 w-5" />
+                    Google Drive conectado com sucesso!
+                  </div>
+                ) : (
+                  <Button className="w-full" onClick={onConnectGoogleDrive}>
+                    <HardDrive className="h-4 w-4 mr-2" />
+                    Conectar Google Drive
+                  </Button>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Suas mídias serão salvas na pasta <code>/WhatsApp Uploads</code>{" "}
+                  do seu Google Drive, organizadas por data e tipo.
+                </p>
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Envie uma foto, vídeo, áudio ou documento para o número do
+                  WhatsApp Business conectado. O sistema processará
+                  automaticamente e salvará no Google Drive.
+                </p>
+
+                <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-6 text-center">
+                  <Send className="h-8 w-8 text-primary mx-auto mb-3" />
+                  <p className="text-sm font-medium text-foreground">
+                    Envie uma mídia pelo WhatsApp
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    O status mudará para "Conectado" após o processamento
+                  </p>
                 </div>
-              ) : (
-                <Button className="w-full" onClick={onConnectGoogleDrive}>
-                  <HardDrive className="h-4 w-4 mr-2" />
-                  Conectar Google Drive
+
+                <Button variant="outline" className="w-full" onClick={onClose}>
+                  Concluir configuração
                 </Button>
-              )}
-
-              <p className="text-xs text-muted-foreground">
-                Suas mídias serão salvas na pasta <code>/WhatsApp Uploads</code>{" "}
-                do seu Google Drive, organizadas por data e tipo.
-              </p>
-            </div>
-          )}
-
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Envie uma foto, vídeo, áudio ou documento para o número do
-                WhatsApp Business conectado. O sistema processará
-                automaticamente e salvará no Google Drive.
-              </p>
-
-              <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-6 text-center">
-                <Send className="h-8 w-8 text-primary mx-auto mb-3" />
-                <p className="text-sm font-medium text-foreground">
-                  Envie uma mídia pelo WhatsApp
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  O status mudará para "Conectado" após o processamento
-                </p>
               </div>
+            )}
+          </div>
 
-              <Button variant="outline" className="w-full" onClick={onClose}>
-                Concluir configuração
+          {/* Navigation */}
+          <div className="border-t px-6 py-4">
+            <div className="flex justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                disabled={currentStep === 0}
+              >
+                Voltar
               </Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={onClose}>
+                  Pular
+                </Button>
+                <Button size="sm" onClick={handleNext}>
+                  {currentStep === STEPS.length - 1 ? "Concluir" : "Próximo"}
+                  {currentStep < STEPS.length - 1 && (
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  )}
+                </Button>
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-between pt-2 border-t">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            disabled={currentStep === 0}
-          >
-            Voltar
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              Pular
-            </Button>
-            <Button size="sm" onClick={handleNext}>
-              {currentStep === STEPS.length - 1 ? "Concluir" : "Próximo"}
-              {currentStep < STEPS.length - 1 && (
-                <ArrowRight className="h-4 w-4 ml-1" />
-              )}
-            </Button>
           </div>
         </div>
       </DialogContent>

@@ -9,6 +9,12 @@ import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
 import { Cloud, Loader2, Mail, ArrowLeft } from 'lucide-react'
 
+function getResetRedirectUrl() {
+  const configuredUrl = import.meta.env.VITE_AUTH_REDIRECT_URL?.trim()
+  if (configuredUrl) return `${configuredUrl.replace(/\/$/, '')}/reset-password`
+  return `${window.location.origin}/reset-password`
+}
+
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -21,7 +27,7 @@ export default function ForgotPassword() {
 
     setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getResetRedirectUrl(),
     })
 
     if (error) {
@@ -41,7 +47,7 @@ export default function ForgotPassword() {
   const handleResend = async () => {
     setLoading(true)
     await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getResetRedirectUrl(),
     })
     toast({
       title: 'Email reenviado',
