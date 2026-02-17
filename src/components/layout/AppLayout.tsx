@@ -1,5 +1,6 @@
 import { ReactNode } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
+import { InstallBanner } from "@/components/pwa/InstallBanner"
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -70,6 +71,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             </Link>
           </div>
         </header>
+        <InstallBanner />
         <div className="flex flex-1 flex-col gap-4 p-4 pb-24 pt-20 transition-all duration-300 md:pb-4 md:pt-4">
           {children}
         </div>
