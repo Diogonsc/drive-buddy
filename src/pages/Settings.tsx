@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -598,53 +605,63 @@ export default function Settings() {
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Número WhatsApp</Label>
-                  <select
-                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  <Select
                     value={newRule.whatsappConnectionId}
-                    onChange={(event) =>
-                      setNewRule((prev) => ({ ...prev, whatsappConnectionId: event.target.value }))
+                    onValueChange={(value) =>
+                      setNewRule((prev) => ({ ...prev, whatsappConnectionId: value }))
                     }
                   >
-                    <option value="">Selecione</option>
-                    {whatsappConnections.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label || item.phone_number_id}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {whatsappConnections.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.label || item.phone_number_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Conta Google Drive</Label>
-                  <select
-                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  <Select
                     value={newRule.googleDriveAccountId}
-                    onChange={(event) =>
-                      setNewRule((prev) => ({ ...prev, googleDriveAccountId: event.target.value }))
+                    onValueChange={(value) =>
+                      setNewRule((prev) => ({ ...prev, googleDriveAccountId: value }))
                     }
                   >
-                    <option value="">Selecione</option>
-                    {googleAccounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.label || account.account_email || account.id}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {googleAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.label || account.account_email || account.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Tipo de arquivo</Label>
-                  <select
-                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  <Select
                     value={newRule.fileType}
-                    onChange={(event) =>
-                      setNewRule((prev) => ({ ...prev, fileType: event.target.value as RuleFileType }))
+                    onValueChange={(value) =>
+                      setNewRule((prev) => ({ ...prev, fileType: value as RuleFileType }))
                     }
                   >
-                    <option value="all">Todos</option>
-                    <option value="image">Imagens</option>
-                    <option value="video">Vídeos</option>
-                    <option value="audio">Áudios</option>
-                    <option value="document">Documentos</option>
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="image">Imagens</SelectItem>
+                      <SelectItem value="video">Vídeos</SelectItem>
+                      <SelectItem value="audio">Áudios</SelectItem>
+                      <SelectItem value="document">Documentos</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center justify-between rounded-md border px-3 py-2">
                   <Label>Marcar como regra padrão</Label>
