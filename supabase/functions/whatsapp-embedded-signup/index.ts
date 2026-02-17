@@ -86,18 +86,21 @@ Deno.serve(async (req) => {
   const META_APP_ID = Deno.env.get('META_APP_ID')
   const META_APP_SECRET = Deno.env.get('META_APP_SECRET')
 
-  if (!META_APP_ID || !META_APP_SECRET) {
-    return jsonError(friendlyError('MISSING_CONFIG', 'META_APP_ID or META_APP_SECRET not set'), 503)
-  }
-
   try {
     const body = await req.json()
-    const { action } = body
+    const { action, connectionId } = body
 
     // =====================================================
     // ACTION: exchange_code
     // =====================================================
     if (action === 'exchange_code') {
+      if (!META_APP_ID || !META_APP_SECRET) {
+        return jsonError(
+          friendlyError('MISSING_CONFIG', 'META_APP_ID or META_APP_SECRET not set'),
+          503,
+        )
+      }
+
       const { code, waba_id, phone_number_id } = body
 
       if (!code) {
@@ -204,11 +207,23 @@ Deno.serve(async (req) => {
       const { data: existingByPhone } = finalPhoneNumberId
         ? await adminClient
             .from('whatsapp_connections')
-            .select('id')
+            .select('id, user_id')
             .eq('user_id', user.id)
             .eq('phone_number_id', finalPhoneNumberId)
             .maybeSingle()
         : { data: null }
+
+      const { data: claimedByAnotherUser } = await adminClient
+        .from('whatsapp_connections')
+        .select('id, user_id')
+        .eq('phone_number_id', finalPhoneNumberId)
+        .neq('user_id', user.id)
+        .in('status', ['connected', 'pending'])
+        .maybeSingle()
+
+      if (claimedByAnotherUser) {
+        return jsonError(friendlyError('NUMBER_ALREADY_REGISTERED'), 409)
+      }
 
       const isNewPhone = !existingByPhone && Boolean(finalPhoneNumberId)
       if (isNewPhone && (activeConnectionsCount || 0) >= limits.whatsappNumbersLimit) {
@@ -232,7 +247,7 @@ Deno.serve(async (req) => {
           webhook_verify_token: webhookVerifyToken,
           status: 'pending',
           connected_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,phone_number_id' })
+        }, { onConflict: 'phone_number_id' })
 
       if (upsertError) {
         console.error('[embedded-signup] DB upsert error:', upsertError)
@@ -347,6 +362,13 @@ Deno.serve(async (req) => {
     // ACTION: get_config (returns public app config for SDK)
     // =====================================================
     if (action === 'get_config') {
+      if (!META_APP_ID) {
+        return jsonError(
+          friendlyError('MISSING_CONFIG', 'META_APP_ID not set'),
+          503,
+        )
+      }
+
       const configId = Deno.env.get('META_CONFIG_ID')
       
       return jsonSuccess({
@@ -360,16 +382,30 @@ Deno.serve(async (req) => {
     // ACTION: disconnect
     // =====================================================
     if (action === 'disconnect') {
-      await adminClient
-        .from('whatsapp_connections')
-        .update({
-          access_token: null,
-          business_account_id: null,
-          webhook_verify_token: null,
-          status: 'disconnected',
-          connected_at: null,
-        })
-        .eq('user_id', user.id)
+      if (connectionId) {
+        await adminClient
+          .from('whatsapp_connections')
+          .update({
+            access_token: null,
+            business_account_id: null,
+            webhook_verify_token: null,
+            status: 'disconnected',
+            connected_at: null,
+          })
+          .eq('id', connectionId)
+          .eq('user_id', user.id)
+      } else {
+        await adminClient
+          .from('whatsapp_connections')
+          .update({
+            access_token: null,
+            business_account_id: null,
+            webhook_verify_token: null,
+            status: 'disconnected',
+            connected_at: null,
+          })
+          .eq('user_id', user.id)
+      }
 
       await adminClient
         .from('connections')

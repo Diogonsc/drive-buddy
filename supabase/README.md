@@ -23,6 +23,7 @@ Execute também, nesta ordem:
 3. `sql/006_align_user_settings.sql`
 4. `sql/007_b2b_plan_enforcement_and_multi_integrations.sql`
 5. `sql/008_admin_read_policies_for_b2b_management.sql`
+6. `sql/009_whatsapp_phone_global_uniqueness.sql`
 
 Essas migrações ativam:
 - monitoramento de integrações;

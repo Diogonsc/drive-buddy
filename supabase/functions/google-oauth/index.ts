@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
       .from('connections')
       .select('google_redirect_uri, google_refresh_token')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
     const { data: subscription } = await supabase
       .from('subscriptions')
@@ -101,6 +101,16 @@ Deno.serve(async (req: Request) => {
     // ACTION: AUTHORIZE - Gerar URL de autorização
     // =====================================================
     if (action === 'authorize') {
+      const finalRedirectUri = redirectUri || configuredRedirectUri
+      if (!finalRedirectUri) {
+        return new Response(JSON.stringify({
+          error: 'redirectUri ausente. Envie o redirectUri na requisição.',
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       const scopes = [
         'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/drive.metadata.readonly',
@@ -108,7 +118,7 @@ Deno.serve(async (req: Request) => {
 
       const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
       authUrl.searchParams.set('client_id', clientId)
-      authUrl.searchParams.set('redirect_uri', redirectUri || configuredRedirectUri)
+      authUrl.searchParams.set('redirect_uri', finalRedirectUri)
       authUrl.searchParams.set('response_type', 'code')
       authUrl.searchParams.set('scope', scopes.join(' '))
       authUrl.searchParams.set('access_type', 'offline')
@@ -125,6 +135,16 @@ Deno.serve(async (req: Request) => {
     // ACTION: CALLBACK - Trocar código por tokens
     // =====================================================
     if (action === 'callback' && code) {
+      const finalRedirectUri = redirectUri || configuredRedirectUri
+      if (!finalRedirectUri) {
+        return new Response(JSON.stringify({
+          error: 'redirectUri ausente no callback OAuth.',
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -133,7 +153,7 @@ Deno.serve(async (req: Request) => {
           client_secret: clientSecret,
           code,
           grant_type: 'authorization_code',
-          redirect_uri: redirectUri || configuredRedirectUri,
+          redirect_uri: finalRedirectUri,
         }),
       })
 
@@ -217,15 +237,15 @@ Deno.serve(async (req: Request) => {
 
       await supabase
         .from('connections')
-        .update({
+        .upsert({
+          user_id: userId,
           google_access_token: tokens.access_token,
-          google_refresh_token: tokens.refresh_token || connection?.google_refresh_token,
+          google_refresh_token: tokens.refresh_token || connection?.google_refresh_token || null,
           google_token_expires_at: expiresAt,
           google_status: 'connected',
           google_connected_at: new Date().toISOString(),
-          google_redirect_uri: redirectUri || configuredRedirectUri,
-        })
-        .eq('user_id', userId)
+          google_redirect_uri: finalRedirectUri,
+        }, { onConflict: 'user_id' })
 
       return new Response(JSON.stringify({ 
         success: true,

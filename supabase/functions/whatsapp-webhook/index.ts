@@ -115,11 +115,17 @@ async function findWhatsAppConnectionByPhoneNumber(
   supabase: ReturnType<typeof createClient>,
   phoneNumberId: string,
 ) {
-  const { data: multiConn } = await supabase
+  const { data: multiConn, error: multiError } = await supabase
     .from('whatsapp_connections')
     .select('id, user_id, access_token')
     .eq('phone_number_id', phoneNumberId)
+    .order('created_at', { ascending: true })
+    .limit(1)
     .maybeSingle()
+
+  if (multiError) {
+    console.error('Error loading whatsapp_connections by phone_number_id:', multiError)
+  }
 
   if (multiConn) {
     return {
