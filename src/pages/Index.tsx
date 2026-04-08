@@ -207,6 +207,8 @@ const Index = () => {
       supabase.removeChannel(channel);
     };
   }, [user, loadMetrics, loadRecentActivity]);
+
+  const handleConnectWhatsApp = () => {
     // Se está pending, verificar/atualizar o status (pode ter mudado após receber primeira mensagem)
     if (whatsappStatus === 'pending') {
       handleRefreshWhatsAppStatus();
