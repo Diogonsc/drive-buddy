@@ -119,6 +119,7 @@ async function findWhatsAppConnectionByPhoneNumber(
     .from('whatsapp_connections')
     .select('id, user_id, access_token')
     .eq('phone_number_id', phoneNumberId)
+    .in('status', ['connected', 'pending'])
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle()
@@ -139,6 +140,7 @@ async function findWhatsAppConnectionByPhoneNumber(
     .from('connections')
     .select('user_id, whatsapp_access_token')
     .eq('whatsapp_phone_number_id', phoneNumberId)
+    .eq('whatsapp_status', 'connected')
     .maybeSingle()
 
   if (!legacyConn) return null

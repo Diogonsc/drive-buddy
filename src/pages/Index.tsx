@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ConnectionsOverview } from "@/components/dashboard/ConnectionsOverview";
@@ -97,52 +97,79 @@ const Index = () => {
   }, [user]);
 
   // Carregar métricas
-  useEffect(() => {
+  const loadMetrics = useCallback(async () => {
     if (!user) return;
+    try {
+      const { data: filesData, error: filesError } = await supabase
+        .from('media_files')
+        .select('file_type, status, file_size_bytes')
+        .eq('user_id', user.id);
 
-    const loadMetrics = async () => {
-      try {
-        // Buscar estatísticas dos arquivos
-        const { data: filesData, error: filesError } = await supabase
-          .from('media_files')
-          .select('file_type, status, file_size_bytes')
-          .eq('user_id', user.id);
+      if (filesError) throw filesError;
 
-        if (filesError) throw filesError;
+      const totalFiles = filesData?.length || 0;
+      const images = filesData?.filter(f => f.file_type === 'image').length || 0;
+      const videos = filesData?.filter(f => f.file_type === 'video').length || 0;
+      const audios = filesData?.filter(f => f.file_type === 'audio').length || 0;
+      const documents = filesData?.filter(f => f.file_type === 'document').length || 0;
+      const completed = filesData?.filter(f => f.status === 'completed').length || 0;
+      const pending = filesData?.filter(f => f.status === 'pending' || f.status === 'processing').length || 0;
+      const successRate = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
+      const totalBytes = filesData?.reduce((sum, f) => sum + (f.file_size_bytes || 0), 0) || 0;
 
-        const totalFiles = filesData?.length || 0;
-        const images = filesData?.filter(f => f.file_type === 'image').length || 0;
-        const videos = filesData?.filter(f => f.file_type === 'video').length || 0;
-        const audios = filesData?.filter(f => f.file_type === 'audio').length || 0;
-        const documents = filesData?.filter(f => f.file_type === 'document').length || 0;
-        const completed = filesData?.filter(f => f.status === 'completed').length || 0;
-        const pending = filesData?.filter(f => f.status === 'pending' || f.status === 'processing').length || 0;
-        
-        const successRate = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
-        
-        // Calcular armazenamento total
-        const totalBytes = filesData?.reduce((sum, f) => sum + (f.file_size_bytes || 0), 0) || 0;
-        const storageUsed = formatBytes(totalBytes);
-
-        setMetrics({
-          totalFiles,
-          images,
-          videos,
-          audios,
-          documents,
-          successRate: Math.round(successRate * 10) / 10,
-          pendingFiles: pending,
-          storageUsed,
-        });
-      } catch (error) {
-        console.error('Error loading metrics:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadMetrics();
+      setMetrics({
+        totalFiles,
+        images,
+        videos,
+        audios,
+        documents,
+        successRate: Math.round(successRate * 10) / 10,
+        pendingFiles: pending,
+        storageUsed: formatBytes(totalBytes),
+      });
+    } catch (error) {
+      console.error('Error loading metrics:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
+
+  // Carregar atividades recentes
+  const loadRecentActivity = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('media_files')
+        .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at')
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(8);
+
+      if (error) throw error;
+
+      const entries: LogEntry[] = (data || []).map(file => ({
+        id: file.id,
+        mediaType: file.file_type as any,
+        fileName: file.file_name,
+        sender: file.sender_phone || file.sender_name || 'Desconhecido',
+        timestamp: new Date(file.received_at),
+        status: mapStatus(file.status),
+        errorMessage: file.error_message || undefined,
+      }));
+
+      setLogEntries(entries);
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
+
+  useEffect(() => {
+    loadRecentActivity();
+  }, [loadRecentActivity]);
 
   // Check first login for onboarding
   useEffect(() => {
@@ -150,47 +177,36 @@ const Index = () => {
     const onboardingKey = `onboarding_shown_${user.id}`;
     const alreadyShown = localStorage.getItem(onboardingKey);
     if (!alreadyShown) {
-      // Show wizard on first visit
       setShowOnboarding(true);
       localStorage.setItem(onboardingKey, 'true');
     }
   }, [user]);
 
-  // Carregar atividades recentes
+  // Realtime: atualiza dashboard automaticamente quando chega nova mídia
   useEffect(() => {
     if (!user) return;
 
-    const loadRecentActivity = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('media_files')
-          .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at')
-          .eq('user_id', user.id)
-          .order('received_at', { ascending: false })
-          .limit(8);
+    const channel = supabase
+      .channel(`media_files_dashboard_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'media_files',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadMetrics();
+          loadRecentActivity();
+        }
+      )
+      .subscribe();
 
-        if (error) throw error;
-
-        const entries: LogEntry[] = (data || []).map(file => ({
-          id: file.id,
-          mediaType: file.file_type as any,
-          fileName: file.file_name,
-          sender: file.sender_phone || file.sender_name || 'Desconhecido',
-          timestamp: new Date(file.received_at),
-          status: mapStatus(file.status),
-          errorMessage: file.error_message || undefined,
-        }));
-
-        setLogEntries(entries);
-      } catch (error) {
-        console.error('Error loading recent activity:', error);
-      }
+    return () => {
+      supabase.removeChannel(channel);
     };
-
-    loadRecentActivity();
-  }, [user]);
-
-  const handleConnectWhatsApp = () => {
+  }, [user, loadMetrics, loadRecentActivity]);
     // Se está pending, verificar/atualizar o status (pode ter mudado após receber primeira mensagem)
     if (whatsappStatus === 'pending') {
       handleRefreshWhatsAppStatus();
@@ -281,54 +297,7 @@ const Index = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Recarregar métricas e atividades
-      const { data: filesData } = await supabase
-        .from('media_files')
-        .select('file_type, status, file_size_bytes')
-        .eq('user_id', user!.id);
-
-      const { data: recentData } = await supabase
-        .from('media_files')
-        .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at')
-        .eq('user_id', user!.id)
-        .order('received_at', { ascending: false })
-        .limit(8);
-
-      // Atualizar métricas
-      if (filesData) {
-        const totalFiles = filesData.length;
-        const completed = filesData.filter(f => f.status === 'completed').length;
-        const pending = filesData.filter(f => f.status === 'pending' || f.status === 'processing').length;
-        const successRate = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
-        const totalBytes = filesData.reduce((sum, f) => sum + (f.file_size_bytes || 0), 0);
-
-        setMetrics(prev => ({
-          ...prev,
-          totalFiles,
-          images: filesData.filter(f => f.file_type === 'image').length,
-          videos: filesData.filter(f => f.file_type === 'video').length,
-          audios: filesData.filter(f => f.file_type === 'audio').length,
-          documents: filesData.filter(f => f.file_type === 'document').length,
-          successRate: Math.round(successRate * 10) / 10,
-          pendingFiles: pending,
-          storageUsed: formatBytes(totalBytes),
-        }));
-      }
-
-      // Atualizar atividades
-      if (recentData) {
-        const entries: LogEntry[] = recentData.map(file => ({
-          id: file.id,
-          mediaType: file.file_type as any,
-          fileName: file.file_name,
-          sender: file.sender_phone || file.sender_name || 'Desconhecido',
-          timestamp: new Date(file.received_at),
-          status: mapStatus(file.status),
-          errorMessage: file.error_message || undefined,
-        }));
-        setLogEntries(entries);
-      }
-
+      await Promise.all([loadMetrics(), loadRecentActivity()]);
       toast.success("Atividades atualizadas!");
     } catch (error) {
       console.error('Error refreshing:', error);

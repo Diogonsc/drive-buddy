@@ -327,7 +327,6 @@ Deno.serve(async (req) => {
               },
               body: JSON.stringify({
                 messaging_product: 'whatsapp',
-                pin: '123456', // Required by API but auto-generated for Cloud API
               }),
             }
           )

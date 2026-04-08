@@ -117,6 +117,7 @@ export default function Logs() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10;
 
   // Função para mapear status do banco para o tipo LogStatus
@@ -134,9 +135,10 @@ export default function Logs() {
     try {
       let query = supabase
         .from('media_files')
-        .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at')
+        .select('id, file_name, file_type, sender_phone, sender_name, status, error_message, received_at', { count: 'exact' })
         .eq('user_id', user.id)
-        .order('received_at', { ascending: false });
+        .order('received_at', { ascending: false })
+        .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
 
       // Aplicar filtros no backend
       if (mediaTypeFilter !== "all") {
@@ -166,7 +168,7 @@ export default function Logs() {
         query = query.lte('received_at', endOfDay.toISOString());
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
@@ -181,6 +183,7 @@ export default function Logs() {
       }));
 
       setLogs(logEntries);
+      setTotalCount(count ?? 0);
     } catch (error) {
       console.error('Error loading logs:', error);
       toast.error("Erro ao carregar logs");
@@ -194,25 +197,17 @@ export default function Logs() {
   }, [user, mediaTypeFilter, statusFilter, dateFrom, dateTo]);
 
   const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
-      // Search filter (client-side para melhor UX)
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch =
-          log.fileName.toLowerCase().includes(query) ||
-          log.sender.toLowerCase().includes(query);
-        if (!matchesSearch) return false;
-      }
-
-      return true;
-    });
+    if (!searchQuery) return logs;
+    const query = searchQuery.toLowerCase();
+    return logs.filter(
+      (log) =>
+        log.fileName.toLowerCase().includes(query) ||
+        log.sender.toLowerCase().includes(query)
+    );
   }, [logs, searchQuery]);
 
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
-  const paginatedLogs = filteredLogs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const paginatedLogs = filteredLogs;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -264,14 +259,13 @@ export default function Logs() {
     return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
   };
 
-  // Stats
   const stats = useMemo(() => {
-    const total = filteredLogs.length;
-    const success = filteredLogs.filter((l) => l.status === "success").length;
-    const pending = filteredLogs.filter((l) => l.status === "pending").length;
-    const error = filteredLogs.filter((l) => l.status === "error").length;
+    const total = totalCount;
+    const success = logs.filter((l) => l.status === "success").length;
+    const pending = logs.filter((l) => l.status === "pending").length;
+    const error = logs.filter((l) => l.status === "error").length;
     return { total, success, pending, error };
-  }, [filteredLogs]);
+  }, [logs, totalCount]);
 
   return (
     <AppLayout>

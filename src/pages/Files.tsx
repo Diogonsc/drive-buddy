@@ -68,22 +68,38 @@ export default function Files() {
           setRootFolder(connection.google_root_folder);
         }
 
-        // Buscar URL do Google Drive se disponível
-        const { data: firstFile } = await supabase
-          .from('media_files')
-          .select('google_drive_url')
+        // Buscar URL da pasta raiz do Google Drive
+        // Estratégia 1: usar root_folder_id da conta Google Drive conectada
+        const { data: googleAccount } = await supabase
+          .from('google_drive_accounts')
+          .select('root_folder_id, root_folder_path')
           .eq('user_id', user.id)
-          .eq('status', 'completed')
-          .not('google_drive_url', 'is', null)
+          .eq('status', 'connected')
+          .order('created_at', { ascending: true })
           .limit(1)
           .maybeSingle();
 
-        if (firstFile?.google_drive_url) {
-          // Extrair o ID da pasta do Google Drive da URL
-          const url = new URL(firstFile.google_drive_url);
-          const fileId = url.pathname.split('/')[3];
-          if (fileId) {
-            setGoogleDriveUrl(`https://drive.google.com/drive/folders/${fileId}`);
+        if (googleAccount?.root_folder_id) {
+          setGoogleDriveUrl(`https://drive.google.com/drive/folders/${googleAccount.root_folder_id}`);
+        } else {
+          // Estratégia 2: pegar google_drive_folder_id de um arquivo processado
+          const { data: firstFile } = await supabase
+            .from('media_files')
+            .select('google_drive_folder_id, google_drive_url')
+            .eq('user_id', user.id)
+            .eq('status', 'completed')
+            .not('google_drive_folder_id', 'is', null)
+            .order('processed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (firstFile?.google_drive_folder_id) {
+            setGoogleDriveUrl(`https://drive.google.com/drive/folders/${firstFile.google_drive_folder_id}`);
+          } else if (firstFile?.google_drive_url) {
+            // Estratégia 3 (fallback): tentar extrair da URL do arquivo
+            // URL de arquivo: https://drive.google.com/file/d/{fileId}/view
+            // Não temos o folderId direto aqui, então abrimos o arquivo no Drive
+            setGoogleDriveUrl(firstFile.google_drive_url);
           }
         }
       } catch (error) {

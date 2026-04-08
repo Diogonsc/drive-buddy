@@ -31,12 +31,27 @@ serve(async (req) => {
     if (targetUserId) {
       users = [{ user_id: targetUserId }];
     } else {
-      // Get all users with at least one connection active
-      const { data } = await supabase
-        .from("connections")
-        .select("user_id")
-        .or("whatsapp_status.eq.connected,google_status.eq.connected");
-      users = data || [];
+      // Get all users with at least one active connection (legacy OR multi-connection tables)
+      const [{ data: legacyUsers }, { data: multiWaUsers }, { data: multiGoogleUsers }] = await Promise.all([
+        supabase
+          .from("connections")
+          .select("user_id")
+          .or("whatsapp_status.eq.connected,google_status.eq.connected"),
+        supabase
+          .from("whatsapp_connections")
+          .select("user_id")
+          .in("status", ["connected", "pending"]),
+        supabase
+          .from("google_drive_accounts")
+          .select("user_id")
+          .eq("status", "connected"),
+      ]);
+
+      const userIdSet = new Set<string>();
+      for (const row of [...(legacyUsers ?? []), ...(multiWaUsers ?? []), ...(multiGoogleUsers ?? [])]) {
+        userIdSet.add(row.user_id);
+      }
+      users = Array.from(userIdSet).map(id => ({ user_id: id }));
     }
 
     console.log(`[HEALTH] Checking ${users.length} user(s)`);
