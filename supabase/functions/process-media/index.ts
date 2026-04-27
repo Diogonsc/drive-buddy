@@ -303,67 +303,65 @@ async function resolveGoogleAccount(media: Record<string, unknown>) {
 }
 
 async function enforcePlanBeforeProcessing(userId: string) {
-  const now = new Date();
   const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("monthly_file_limit, files_used_current_month, overage_enabled, current_period_end")
-    .eq("user_id", userId)
-    .maybeSingle();
+    .from('subscriptions')
+    .select('monthly_file_limit, files_used_current_month, overage_enabled, current_period_end')
+    .eq('user_id', userId)
+    .maybeSingle()
 
-  if (!sub) {
-    return { limit: null as number | null, usedBefore: 0, overageEnabled: false };
-  }
+  // Sem subscription: permite com limite padrão do Plano Essencial
+  if (!sub) return { limit: 200, usedBefore: 0, overageEnabled: true }
 
-  let usedBefore = Number(sub.files_used_current_month || 0);
-  const limit = sub.monthly_file_limit == null ? null : Number(sub.monthly_file_limit);
-  const overageEnabled = Boolean(sub.overage_enabled);
+  const limit = sub.monthly_file_limit == null ? 200 : Number(sub.monthly_file_limit)
+  const overageEnabled = true // Plano Essencial sempre permite excedente (cobrado separado)
+  const usedBefore = await supabase
+    .from('subscriptions')
+    .select('files_used_current_month')
+    .eq('user_id', userId)
+    .maybeSingle()
+    .then(r => Number(r.data?.files_used_current_month ?? 0))
 
-  if (sub.current_period_end && new Date(sub.current_period_end).getTime() < now.getTime()) {
-    await supabase
-      .from("subscriptions")
-      .update({ files_used_current_month: 0 })
-      .eq("user_id", userId);
-    usedBefore = 0;
-  }
-
-  if (limit !== null && usedBefore >= limit && !overageEnabled) {
-    throw new Error(`Limite do plano atingido (${usedBefore}/${limit} arquivos no ciclo).`);
-  }
-
-  return { limit, usedBefore, overageEnabled };
+  // No modelo Essencial, nunca bloqueia — apenas registra excedente
+  return { limit, usedBefore, overageEnabled: true }
 }
 
-async function registerPlanUsage(userId: string, mediaFileId: string, usedBefore: number, limit: number | null) {
+async function registerPlanUsage(
+  userId: string,
+  mediaFileId: string,
+  usedBefore: number,
+  limit: number | null,
+) {
   await supabase
-    .from("subscriptions")
-    .update({
-      files_used_current_month: usedBefore + 1,
-    })
-    .eq("user_id", userId);
+    .from('subscriptions')
+    .update({ files_used_current_month: usedBefore + 1 })
+    .eq('user_id', userId)
 
-  if (!limit || limit <= 0) return;
-  const usedAfter = usedBefore + 1;
+  if (!limit || limit <= 0) return
+
+  const usedAfter = usedBefore + 1
+
+  // Avisos de uso: 80%, 100% (excedente), 150%
   const markers = [
-    { ratio: 0.8, label: "80%" },
-    { ratio: 0.9, label: "90%" },
-    { ratio: 1.0, label: "100%" },
-  ];
+    { ratio: 0.8, label: '80%' },
+    { ratio: 1.0, label: '100% — excedente ativado (R$ 0,10/mídia)' },
+    { ratio: 1.5, label: '150%' },
+  ]
 
   for (const marker of markers) {
-    const checkpoint = Math.ceil(limit * marker.ratio);
+    const checkpoint = Math.ceil(limit * marker.ratio)
     if (usedBefore < checkpoint && usedAfter >= checkpoint) {
-      await supabase.from("sync_logs").insert({
+      await supabase.from('sync_logs').insert({
         user_id: userId,
         media_file_id: mediaFileId,
-        action: "plan_usage_warning",
-        status: "completed",
+        action: 'plan_usage_warning',
+        status: 'completed',
         message:
-          marker.ratio === 1
-            ? `Limite mensal atingido (${usedAfter}/${limit})`
+          usedAfter >= limit
+            ? `Mídias inclusas esgotadas (${usedAfter}/${limit}) — excedente: R$ 0,10/mídia`
             : `Uso do plano atingiu ${marker.label} (${usedAfter}/${limit})`,
         metadata: { used: usedAfter, limit, ratio: marker.ratio },
-        source: "process-media",
-      });
+        source: 'process-media',
+      })
     }
   }
 }

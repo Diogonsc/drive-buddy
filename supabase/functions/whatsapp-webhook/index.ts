@@ -78,15 +78,32 @@ Deno.serve(async (req) => {
     })
   }
 
-  // Busca conexão pelo número Twilio de destino
+  // No modelo compartilhado, identifica o usuário pelo número de origem (From)
+  // cruzando com o customer_phone_number cadastrado no onboarding
+  const senderPhone = from.replace('whatsapp:', '')
+  
   const { data: connection } = await supabase
     .from('whatsapp_connections')
     .select('id, user_id, twilio_subaccount_sid, twilio_subaccount_auth_token')
     .eq('twilio_whatsapp_number', to)
+    .eq('customer_phone_number', senderPhone)
     .in('status', ['connected', 'pending'])
     .maybeSingle()
 
-  if (!connection) {
+  // Se não encontrou pelo número exato, busca qualquer conexão ativa 
+  // com este número Twilio (fallback para quando o remetente é desconhecido)
+  const { data: fallbackConnection } = !connection ? await supabase
+    .from('whatsapp_connections')
+    .select('id, user_id, twilio_subaccount_sid, twilio_subaccount_auth_token')
+    .eq('twilio_whatsapp_number', to)
+    .in('status', ['connected', 'pending'])
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle() : { data: null }
+
+  const activeConnection = connection || fallbackConnection
+
+  if (!activeConnection) {
     console.error(`[WEBHOOK] Nenhuma conexão para número: ${to}`)
     return new Response('<Response></Response>', {
       status: 200,
@@ -96,12 +113,12 @@ Deno.serve(async (req) => {
 
   // Valida assinatura usando credenciais da SUBACCOUNT do cliente
   const skipValidation = Deno.env.get('SKIP_TWILIO_SIGNATURE_VALIDATION') === 'true'
-  if (!skipValidation && connection.twilio_subaccount_auth_token) {
+  if (!skipValidation && activeConnection.twilio_subaccount_auth_token) {
     const isValid = await validateTwilioSignature(
       req,
       rawBody,
       req.url,
-      connection.twilio_subaccount_auth_token as string,
+      activeConnection.twilio_subaccount_auth_token as string,
     )
     if (!isValid) {
       console.error('[WEBHOOK] Assinatura inválida')
@@ -133,8 +150,8 @@ Deno.serve(async (req) => {
     const { data: mediaFile } = await supabase
       .from('media_files')
       .insert({
-        user_id: connection.user_id,
-        whatsapp_connection_id: connection.id,
+        user_id: activeConnection.user_id,
+        whatsapp_connection_id: activeConnection.id,
         whatsapp_media_id: mediaUrl,
         whatsapp_message_id: mediaId,
         sender_phone: senderPhone,
@@ -154,7 +171,7 @@ Deno.serve(async (req) => {
     await supabase
       .from('whatsapp_connections')
       .update({ status: 'connected', connected_at: timestamp })
-      .eq('id', connection.id)
+      .eq('id', activeConnection.id)
       .eq('status', 'pending')
 
     // Dispara processamento assíncrono

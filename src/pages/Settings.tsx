@@ -41,8 +41,7 @@ interface SubscriptionInfo {
   plan: string;
   monthly_file_limit: number | null;
   files_used_current_month: number | null;
-  whatsapp_numbers_limit: number;
-  google_accounts_limit: number;
+  overage_enabled: boolean;
 }
 
 interface GeneralConfigState {
@@ -121,7 +120,7 @@ export default function Settings() {
       ] = await Promise.all([
         supabase
           .from("subscriptions")
-          .select("plan, monthly_file_limit, files_used_current_month, whatsapp_numbers_limit, google_accounts_limit")
+          .select("plan, monthly_file_limit, files_used_current_month, overage_enabled")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase
@@ -134,11 +133,10 @@ export default function Settings() {
 
       if (subscriptionData) {
         setSubscription({
-          plan: subscriptionData.plan || "starter",
-          monthly_file_limit: subscriptionData.monthly_file_limit,
-          files_used_current_month: subscriptionData.files_used_current_month,
-          whatsapp_numbers_limit: subscriptionData.whatsapp_numbers_limit || 1,
-          google_accounts_limit: subscriptionData.google_accounts_limit || 1,
+          plan: "Plano Essencial",
+          monthly_file_limit: subscriptionData.monthly_file_limit ?? 200,
+          files_used_current_month: subscriptionData.files_used_current_month ?? 0,
+          overage_enabled: true,
         });
       }
 
@@ -441,20 +439,11 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Números WhatsApp</CardTitle>
-              <CardDescription>
-                Limite do plano: {connectedWhatsAppCount}/{subscription?.whatsapp_numbers_limit ?? 1} conectados/pendentes
-              </CardDescription>
+              {/* Remover completamente o alerta de limite de conexões WhatsApp */}
+              {/* O Plano Essencial inclui 1 número WhatsApp — sem alerta de limite */}
             </CardHeader>
             <CardContent className="space-y-4">
               <WhatsAppConnectButton onSuccess={handleWhatsAppConnected} currentStatus={"disconnected"} />
-              {connectedWhatsAppCount >= (subscription?.whatsapp_numbers_limit ?? 1) && (
-                <Alert>
-                  <AlertTitle>Limite do plano atingido</AlertTitle>
-                  <AlertDescription>
-                    Faça upgrade para conectar mais números WhatsApp.
-                  </AlertDescription>
-                </Alert>
-              )}
               <div className="space-y-3">
                 {whatsappConnections.length === 0 && (
                   <p className="text-sm text-muted-foreground">Nenhum número conectado.</p>
@@ -491,9 +480,8 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Contas Google Drive</CardTitle>
-              <CardDescription>
-                Limite do plano: {connectedGoogleCount}/{subscription?.google_accounts_limit ?? 1} conectadas/pendentes
-              </CardDescription>
+              {/* Remover completamente o alerta de limite de conexões Google Drive */}
+              {/* O Plano Essencial inclui 1 Google Drive — sem alerta de limite */}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -751,16 +739,48 @@ export default function Settings() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Consumo do plano</CardTitle>
-              <CardDescription>Acompanhamento de arquivos processados no ciclo atual.</CardDescription>
+              <CardTitle>Consumo do mês</CardTitle>
+              <CardDescription>
+                Plano Essencial — 200 mídias inclusas | R$ 0,10 por mídia excedente
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span>Plano atual: <strong>{subscription?.plan || "starter"}</strong></span>
-                <span>
-                  {subscription?.files_used_current_month ?? 0} / {subscription?.monthly_file_limit ?? "ilimitado"} arquivos
+                <span className="text-muted-foreground">Mídias processadas</span>
+                <span className="font-semibold">
+                  {subscription?.files_used_current_month ?? 0}
+                  {" "}/{" "}
+                  {subscription?.monthly_file_limit ?? 200} inclusas
                 </span>
               </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      ((subscription?.files_used_current_month ?? 0) /
+                        (subscription?.monthly_file_limit ?? 200)) *
+                        100,
+                    )}%`,
+                  }}
+                />
+              </div>
+              {(subscription?.files_used_current_month ?? 0) > (subscription?.monthly_file_limit ?? 200) && (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                  <strong>Excedente ativo:</strong>{" "}
+                  {(subscription?.files_used_current_month ?? 0) - (subscription?.monthly_file_limit ?? 200)} mídias extras
+                  {" "}= R${" "}
+                  {(
+                    ((subscription?.files_used_current_month ?? 0) -
+                      (subscription?.monthly_file_limit ?? 200)) *
+                    0.1
+                  ).toFixed(2).replace(".", ",")} adicionais este mês
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                O contador é zerado automaticamente a cada ciclo mensal.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
