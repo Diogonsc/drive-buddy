@@ -64,7 +64,7 @@ const Index = () => {
       try {
         const { data, error } = await supabase
           .from('connections')
-          .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_business_account_id, whatsapp_connected_at, google_status, google_connected_at')
+          .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_connected_at, google_status, google_connected_at')
           .eq('user_id', user.id)
           .maybeSingle();
 
