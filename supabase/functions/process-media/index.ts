@@ -42,10 +42,10 @@ function buildFolderPath(
   const typeFolder = folderNameByType(fileType);
 
   const structures: Record<string, string[]> = {
-    date_type: [yyyy, mm, dd, typeFolder],
-    type_date: [typeFolder, yyyy, mm, dd],
+    date_type: [yyyy, `${mm}-${dd}`, typeFolder],
+    type_date: [typeFolder, yyyy, `${mm}-${dd}`],
     type: [typeFolder],
-    date: [yyyy, mm, dd],
+    date: [yyyy, `${mm}-${dd}`],
   };
 
   const parts = structures[folderStructure] || structures.date_type;
@@ -491,7 +491,7 @@ Deno.serve(async (req) => {
     const baseFolderPath =
       (accountRow.root_folder_path as string | null) ||
       (accountRow.google_root_folder as string | null) ||
-      "/WhatsApp Uploads";
+      "/SwiftWapDrive";
     const targetPath = buildFolderPath(baseFolderPath, fileType, media.received_at, folderStructure);
     const targetFolderId = await ensureDrivePath(googleToken!, targetPath);
 
