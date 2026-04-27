@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import {
   CheckCircle2, XCircle, Loader2, MessageSquare,
-  Phone, Wifi, ShieldCheck,
+  MessageCircle, Link2, Shield,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
@@ -155,15 +155,15 @@ export function WhatsAppConnectButton({
         <p className="font-medium">Como funciona:</p>
         <div className="space-y-2 text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-primary shrink-0" />
+            <MessageCircle className="h-4 w-4 text-primary shrink-0" />
             <span>Informe seu número WhatsApp Business abaixo</span>
           </div>
           <div className="flex items-center gap-2">
-            <Wifi className="h-4 w-4 text-primary shrink-0" />
+            <Link2 className="h-4 w-4 text-primary shrink-0" />
             <span>A plataforma configura um número dedicado para receber suas mídias</span>
           </div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+            <Shield className="h-4 w-4 text-primary shrink-0" />
             <span>Tudo automático — sem configurações técnicas</span>
           </div>
         </div>
