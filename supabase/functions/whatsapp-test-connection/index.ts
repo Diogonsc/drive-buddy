@@ -1,9 +1,5 @@
-// =====================================================
-// SwiftwapdriveSync - Test WhatsApp API Connection
-// =====================================================
-// Valida Phone Number ID + Access Token junto à Meta Graph API.
-// GET https://graph.facebook.com/v18.0/{phone_number_id}
-// Ref: https://developers.facebook.com/docs/whatsapp/cloud-api/reference/phone-numbers
+// supabase/functions/whatsapp-test-connection/index.ts
+// Valida AccountSid + AuthToken na API da Twilio
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,31 +19,32 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { phoneNumberId, accessToken } = (await req.json()) as {
-      phoneNumberId?: string
-      accessToken?: string
+    const { accountSid, authToken, whatsappNumber } = (await req.json()) as {
+      accountSid?: string
+      authToken?: string
+      whatsappNumber?: string
     }
 
-    if (!phoneNumberId?.trim() || !accessToken?.trim()) {
+    if (!accountSid?.trim() || !authToken?.trim()) {
       return new Response(
-        JSON.stringify({ error: 'phoneNumberId e accessToken são obrigatórios' }),
+        JSON.stringify({ error: 'accountSid e authToken são obrigatórios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    const url = `https://graph.facebook.com/v18.0/${phoneNumberId.trim()}`
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken.trim()}`,
+    // Testa credenciais chamando a Accounts API da Twilio
+    const credentials = btoa(`${accountSid.trim()}:${authToken.trim()}`)
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid.trim()}.json`,
+      {
+        headers: { Authorization: `Basic ${credentials}` },
       },
-    })
+    )
 
     const data = await res.json().catch(() => ({}))
 
     if (!res.ok) {
-      const message =
-        data?.error?.message || data?.error?.error_user_msg || res.statusText || 'Erro ao validar credenciais'
+      const message = data?.message || 'Credenciais inválidas. Verifique seu Account SID e Auth Token.'
       return new Response(
         JSON.stringify({ success: false, error: message }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -57,8 +54,9 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        display_phone_number: data.display_phone_number,
-        verified_name: data.verified_name,
+        friendly_name: data.friendly_name,
+        status: data.status,
+        whatsapp_number: whatsappNumber || null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )

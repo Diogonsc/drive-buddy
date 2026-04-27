@@ -49,7 +49,8 @@ interface WhatsAppConnection {
   id: string;
   label: string | null;
   phone_number_id: string;
-  business_account_id: string | null;
+  twilio_account_sid: string | null;
+  twilio_whatsapp_number: string | null;
   status: ConnectionStatus;
   connected_at: string | null;
 }
@@ -159,7 +160,7 @@ export default function Settings() {
           .maybeSingle(),
         supabase
           .from("whatsapp_connections")
-          .select("id, label, phone_number_id, business_account_id, status, connected_at")
+          .select("id, label, phone_number_id, twilio_account_sid, twilio_whatsapp_number, status, connected_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: true }),
         supabase
@@ -280,9 +281,9 @@ export default function Settings() {
         .from("whatsapp_connections")
         .update({
           status: "disconnected",
-          access_token: null,
-          business_account_id: null,
-          webhook_verify_token: null,
+          twilio_account_sid: null,
+          twilio_auth_token: null,
+          twilio_whatsapp_number: null,
           connected_at: null,
         })
         .eq("id", connectionId);
@@ -435,6 +436,7 @@ export default function Settings() {
 
   const whatsappLabelById = (id: string) =>
     whatsappConnections.find((item) => item.id === id)?.label ||
+    whatsappConnections.find((item) => item.id === id)?.twilio_whatsapp_number ||
     whatsappConnections.find((item) => item.id === id)?.phone_number_id ||
     id;
 
@@ -510,8 +512,11 @@ export default function Settings() {
                   <div key={item.id} className="rounded-lg border p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">{item.label || `WhatsApp ${item.phone_number_id.slice(-4)}`}</p>
-                        <p className="text-xs text-muted-foreground">{item.phone_number_id}</p>
+                        <p className="font-medium">{item.label || `WhatsApp ${(item.twilio_whatsapp_number || item.phone_number_id).slice(-4)}`}</p>
+                        <p className="text-xs text-muted-foreground">{item.twilio_whatsapp_number || item.phone_number_id}</p>
+                        <p className="text-xs text-muted-foreground">
+                          SID: ...{item.twilio_account_sid?.slice(-4) || "----"}
+                        </p>
                       </div>
                       {statusBadge(item.status)}
                     </div>
@@ -617,7 +622,7 @@ export default function Settings() {
                     <SelectContent>
                       {whatsappConnections.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
-                          {item.label || item.phone_number_id}
+                          {item.label || item.twilio_whatsapp_number || item.phone_number_id}
                         </SelectItem>
                       ))}
                     </SelectContent>

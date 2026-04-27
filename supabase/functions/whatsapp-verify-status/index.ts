@@ -70,128 +70,70 @@ Deno.serve(async (req: Request) => {
     // =========================
     // Load connection
     // =========================
-    const { data: multiConnection } = await supabaseAdmin
+    const { data: connectionData } = await supabaseAdmin
       .from("whatsapp_connections")
-      .select("id, phone_number_id, access_token")
+      .select("id, twilio_account_sid, twilio_auth_token, twilio_whatsapp_number")
       .eq("user_id", user.id)
       .in("status", ["connected", "pending"])
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
-    const { data: legacyConnection } = multiConnection
-      ? { data: null }
-      : await supabaseAdmin
-          .from("connections")
-          .select("whatsapp_phone_number_id, whatsapp_access_token")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
     const connection = {
-      whatsapp_phone_number_id:
-        (multiConnection?.phone_number_id as string | null) ||
-        (legacyConnection?.whatsapp_phone_number_id as string | null),
-      whatsapp_access_token:
-        (multiConnection?.access_token as string | null) ||
-        (legacyConnection?.whatsapp_access_token as string | null),
-      whatsapp_connection_id: (multiConnection?.id as string | undefined) || undefined,
-    };
+      whatsapp_connection_id: connectionData?.id as string | undefined,
+      twilio_account_sid: connectionData?.twilio_account_sid as string | null,
+      twilio_auth_token: connectionData?.twilio_auth_token as string | null,
+      twilio_whatsapp_number: connectionData?.twilio_whatsapp_number as string | null,
+    }
 
-    if (
-      !connection?.whatsapp_phone_number_id ||
-      !connection?.whatsapp_access_token
-    ) {
+    // Buscar credenciais Twilio da conexão
+    const twilioAccountSid = connection.twilio_account_sid?.trim()
+    const twilioAuthToken = connection.twilio_auth_token?.trim()
+
+    if (!twilioAccountSid || !twilioAuthToken) {
       return json(
         {
           success: false,
           error:
-            "Configure Phone Number ID e Access Token nas Configurações primeiro.",
+            "Configure Account SID e Auth Token da Twilio nas Configurações.",
         },
         400,
       );
     }
 
-    const phoneNumberId = connection.whatsapp_phone_number_id.trim();
-    const accessToken = connection.whatsapp_access_token.trim();
-
-    // =========================
-    // Call Meta API
-    // =========================
+    const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`)
     const res = await fetch(
-      `https://graph.facebook.com/v18.0/${phoneNumberId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    );
+      `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}.json`,
+      { headers: { Authorization: `Basic ${credentials}` } },
+    )
 
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      const message =
-        data?.error?.error_user_msg ||
-        data?.error?.message ||
-        "Credenciais inválidas ou expiradas";
+      const message = data?.message || "Credenciais Twilio inválidas ou expiradas"
 
       await supabaseAdmin
-        .from("connections")
-        .update({
-          whatsapp_status: "disconnected",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
+        .from("whatsapp_connections")
+        .update({ status: "disconnected" })
+        .eq("id", connection.whatsapp_connection_id)
 
       return json({ success: false, error: message }, 400);
     }
 
-    // =========================
-    // Validate real connection
-    // =========================
-    if (!data.display_phone_number || !data.verified_name) {
-      await supabaseAdmin
-        .from("connections")
-        .update({
-          whatsapp_status: "error",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
-
-      return json(
-        {
-          success: false,
-          error: "Conta WhatsApp incompleta ou não verificada.",
-        },
-        400,
-      );
-    }
-
-    // =========================
-    // Update status
-    // =========================
+    // Atualizar status para connected
     await supabaseAdmin
-      .from("connections")
+      .from("whatsapp_connections")
       .update({
-        whatsapp_status: "connected",
-        whatsapp_connected_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        status: "connected",
+        connected_at: new Date().toISOString(),
       })
-      .eq("user_id", user.id);
-
-    if (connection.whatsapp_connection_id) {
-      await supabaseAdmin
-        .from("whatsapp_connections")
-        .update({
-          status: "connected",
-          connected_at: new Date().toISOString(),
-        })
-        .eq("id", connection.whatsapp_connection_id);
-    }
+      .eq("id", connection.whatsapp_connection_id)
 
     return json({
       success: true,
-      display_phone_number: data.display_phone_number,
-      verified_name: data.verified_name,
+      friendly_name: data.friendly_name,
+      twilio_status: data.status,
+      whatsapp_number: connection.twilio_whatsapp_number,
     });
   } catch (e) {
     console.error("whatsapp-verify-status error:", e);

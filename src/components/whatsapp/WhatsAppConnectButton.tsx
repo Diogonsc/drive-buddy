@@ -1,179 +1,177 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  MessageSquare,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { useFacebookSDK } from '@/hooks/useFacebookSDK';
-import { cn } from '@/lib/utils';
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { CheckCircle2, XCircle, Loader2, MessageSquare, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
+import { supabase } from '@/integrations/supabase/client'
+import { cn } from '@/lib/utils'
 
-type ConnectStatus = 'idle' | 'loading_sdk' | 'connecting' | 'exchanging' | 'success' | 'error';
+type ConnectStatus = 'idle' | 'testing' | 'saving' | 'success' | 'error'
 
 interface WhatsAppConnectButtonProps {
-  onSuccess?: (data: {
-    waba_id?: string;
-    phone_number_id?: string;
-    status: string;
-  }) => void;
-  onError?: (error: string) => void;
-  className?: string;
-  variant?: 'default' | 'compact';
-  currentStatus?: 'connected' | 'disconnected' | 'pending' | 'error';
+  onSuccess?: (data: { status: string; whatsapp_number?: string }) => void
+  onError?: (error: string) => void
+  className?: string
+  currentStatus?: 'connected' | 'disconnected' | 'pending' | 'error'
 }
 
 export function WhatsAppConnectButton({
   onSuccess,
   onError,
   className,
-  variant = 'default',
   currentStatus = 'disconnected',
 }: WhatsAppConnectButtonProps) {
-  const [status, setStatus] = useState<ConnectStatus>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { isLoaded, loadSDK, startEmbeddedSignup, error: sdkError } = useFacebookSDK();
+  const [status, setStatus] = useState<ConnectStatus>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [accountSid, setAccountSid] = useState('')
+  const [authToken, setAuthToken] = useState('')
+  const [whatsappNumber, setWhatsappNumber] = useState('') // ex: +14155238886
 
   const handleConnect = async () => {
-    setErrorMessage(null);
+    setErrorMessage(null)
+
+    if (!accountSid.trim() || !authToken.trim() || !whatsappNumber.trim()) {
+      setErrorMessage('Preencha todos os campos.')
+      return
+    }
 
     try {
-      // Step 1: Load SDK if needed
-      if (!isLoaded) {
-        setStatus('loading_sdk');
-        await loadSDK();
-        // Wait a bit for SDK to initialize
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // 1. Testar credenciais
+      setStatus('testing')
+      const { data: testData, error: testError } = await supabase.functions.invoke(
+        'whatsapp-test-connection',
+        { body: { accountSid, authToken, whatsappNumber } },
+      )
+
+      if (testError || !testData?.success) {
+        throw new Error(testData?.error || testError?.message || 'Credenciais inválidas.')
       }
 
-      // Step 2: Start FB Login / Embedded Signup
-      setStatus('connecting');
-      const result = await startEmbeddedSignup();
+      // 2. Salvar conexão
+      setStatus('saving')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Sessão expirada. Faça login novamente.')
 
-      // Step 3: Exchange code for token via backend
-      setStatus('exchanging');
-      const { data, error } = await supabase.functions.invoke('whatsapp-embedded-signup', {
-        body: {
-          action: 'exchange_code',
-          code: result.code,
-          waba_id: result.waba_id,
-          phone_number_id: result.phone_number_id,
-        },
-      });
+      const formattedNumber = whatsappNumber.startsWith('whatsapp:')
+        ? whatsappNumber
+        : `whatsapp:${whatsappNumber.startsWith('+') ? whatsappNumber : '+' + whatsappNumber}`
 
-      if (error) {
-        throw new Error(error.message || 'Erro ao processar conexão');
-      }
+      const { error: upsertError } = await supabase
+        .from('whatsapp_connections')
+        .upsert({
+          user_id: user.id,
+          label: `WhatsApp ${whatsappNumber.slice(-4)}`,
+          phone_number_id: whatsappNumber,
+          twilio_account_sid: accountSid.trim(),
+          twilio_auth_token: authToken.trim(),
+          twilio_whatsapp_number: formattedNumber,
+          provider: 'twilio',
+          status: 'connected',
+          connected_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,phone_number_id' })
 
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (upsertError) throw new Error(upsertError.message)
 
-      // Success!
-      setStatus('success');
-      toast.success('WhatsApp conectado com sucesso!');
-      onSuccess?.(data);
-    } catch (err: any) {
-      const msg = err?.message || 'Erro ao conectar. Tente novamente.';
-      setStatus('error');
-      setErrorMessage(msg);
-      toast.error(msg);
-      onError?.(msg);
+      setStatus('success')
+      toast.success('WhatsApp conectado com sucesso!')
+      onSuccess?.({ status: 'connected', whatsapp_number: formattedNumber })
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || 'Erro ao conectar. Tente novamente.'
+      setStatus('error')
+      setErrorMessage(msg)
+      toast.error(msg)
+      onError?.(msg)
     }
-  };
+  }
 
-  const handleRetry = () => {
-    setStatus('idle');
-    setErrorMessage(null);
-    handleConnect();
-  };
-
-  // Already connected
   if (currentStatus === 'connected' && status === 'idle') {
     return (
-      <div className={cn('space-y-2', className)}>
-        <div className="flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4">
-          <CheckCircle2 className="h-5 w-5 shrink-0" />
-          <span>WhatsApp conectado com sucesso!</span>
-        </div>
+      <div className={cn('flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4', className)}>
+        <CheckCircle2 className="h-5 w-5 shrink-0" />
+        <span>WhatsApp conectado via Twilio.</span>
       </div>
-    );
+    )
   }
 
-  // Success state
   if (status === 'success') {
     return (
-      <div className={cn('space-y-2', className)}>
-        <div className="flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4">
-          <CheckCircle2 className="h-5 w-5 shrink-0" />
-          <span>WhatsApp conectado com sucesso!</span>
-        </div>
+      <div className={cn('flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4', className)}>
+        <CheckCircle2 className="h-5 w-5 shrink-0" />
+        <span>WhatsApp conectado com sucesso!</span>
       </div>
-    );
+    )
   }
 
-  // Error state
-  if (status === 'error') {
-    return (
-      <div className={cn('space-y-3', className)}>
+  const isProcessing = status === 'testing' || status === 'saving'
+
+  return (
+    <div className={cn('space-y-4', className)}>
+      {errorMessage && (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
-        <Button onClick={handleRetry} variant="outline" className="w-full">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Tentar novamente
-        </Button>
-      </div>
-    );
-  }
-
-  // Loading states
-  const isProcessing = status !== 'idle';
-  const statusLabels: Record<ConnectStatus, string> = {
-    idle: 'Conectar WhatsApp',
-    loading_sdk: 'Carregando...',
-    connecting: 'Conectando...',
-    exchanging: 'Configurando...',
-    success: 'Conectado!',
-    error: 'Erro',
-  };
-
-  return (
-    <div className={cn('space-y-3', className)}>
-      {sdkError && (
-        <Alert variant="destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertDescription>{sdkError}</AlertDescription>
-        </Alert>
       )}
 
-      <Button
-        onClick={handleConnect}
-        disabled={isProcessing}
-        className={cn(
-          'gap-2',
-          variant === 'default' ? 'w-full' : ''
-        )}
-        size={variant === 'compact' ? 'sm' : 'default'}
-      >
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="accountSid">Account SID</Label>
+          <Input
+            id="accountSid"
+            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            value={accountSid}
+            onChange={e => setAccountSid(e.target.value)}
+            disabled={isProcessing}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="authToken">Auth Token</Label>
+          <Input
+            id="authToken"
+            type="password"
+            placeholder="Seu Auth Token da Twilio"
+            value={authToken}
+            onChange={e => setAuthToken(e.target.value)}
+            disabled={isProcessing}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="whatsappNumber">Número WhatsApp Twilio</Label>
+          <Input
+            id="whatsappNumber"
+            placeholder="+14155238886"
+            value={whatsappNumber}
+            onChange={e => setWhatsappNumber(e.target.value)}
+            disabled={isProcessing}
+          />
+          <p className="text-xs text-muted-foreground">
+            Número no formato internacional. Sandbox: +14155238886
+          </p>
+        </div>
+      </div>
+
+      <Button onClick={handleConnect} disabled={isProcessing} className="w-full gap-2">
         {isProcessing ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <MessageSquare className="h-4 w-4" />
         )}
-        {statusLabels[status]}
+        {status === 'testing' ? 'Validando credenciais...' : status === 'saving' ? 'Salvando...' : 'Conectar WhatsApp'}
       </Button>
 
-      {variant === 'default' && status === 'idle' && (
-        <p className="text-xs text-muted-foreground text-center">
-          Conecte em 1 clique via Meta Business. Nenhuma configuração manual necessária.
-        </p>
-      )}
+      <a
+        href="https://console.twilio.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ExternalLink className="h-3 w-3" />
+        Obter credenciais no Twilio Console
+      </a>
     </div>
-  );
+  )
 }

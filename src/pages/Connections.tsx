@@ -30,6 +30,8 @@ interface WhatsAppConnection {
   id: string;
   label: string | null;
   phone_number_id: string;
+  twilio_account_sid: string | null;
+  twilio_whatsapp_number: string | null;
   status: ConnectionStatus;
   connected_at: string | null;
 }
@@ -73,7 +75,7 @@ export default function Connections() {
           .maybeSingle(),
         supabase
           .from("whatsapp_connections")
-          .select("id, label, phone_number_id, status, connected_at")
+          .select("id, label, phone_number_id, twilio_account_sid, twilio_whatsapp_number, status, connected_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: true }),
         supabase
@@ -182,6 +184,7 @@ export default function Connections() {
 
   const waLabelById = (id: string) =>
     whatsappConnections.find((row) => row.id === id)?.label ||
+    whatsappConnections.find((row) => row.id === id)?.twilio_whatsapp_number ||
     whatsappConnections.find((row) => row.id === id)?.phone_number_id ||
     id;
 
@@ -264,8 +267,8 @@ export default function Connections() {
             {whatsappConnections.map((item) => (
               <div key={item.id} className="rounded-md border p-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">{item.label || item.phone_number_id}</p>
-                  <p className="text-xs text-muted-foreground">{item.phone_number_id}</p>
+                  <p className="text-sm font-medium">{item.label || item.twilio_whatsapp_number || item.phone_number_id}</p>
+                  <p className="text-xs text-muted-foreground">{item.twilio_whatsapp_number || item.phone_number_id}</p>
                 </div>
                 {getStatusBadge(item.status)}
               </div>

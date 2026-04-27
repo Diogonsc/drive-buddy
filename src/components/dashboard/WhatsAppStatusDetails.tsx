@@ -6,8 +6,8 @@ import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButt
 
 interface WhatsAppStatusDetailsProps {
   status: "connected" | "disconnected" | "pending" | "error";
-  phoneNumberId?: string;
-  wabaId?: string;
+  twilioNumber?: string;
+  accountSid?: string;
   connectedAt?: string;
   lastMessageAt?: string;
   onRefresh?: () => void;
@@ -17,8 +17,8 @@ interface WhatsAppStatusDetailsProps {
 
 export function WhatsAppStatusDetails({
   status,
-  phoneNumberId,
-  wabaId,
+  twilioNumber,
+  accountSid,
   connectedAt,
   lastMessageAt,
   onRefresh,
@@ -104,18 +104,18 @@ export function WhatsAppStatusDetails({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Connection details */}
-        {status === 'connected' && (phoneNumberId || wabaId) && (
+        {status === 'connected' && (twilioNumber || accountSid) && (
           <div className="grid gap-2 text-sm">
-            {phoneNumberId && (
+            {twilioNumber && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Phone Number ID:</span>
-                <code className="text-xs bg-muted px-2 py-0.5 rounded">{phoneNumberId}</code>
+                <span className="text-muted-foreground">Número WhatsApp:</span>
+                <code className="text-xs bg-muted px-2 py-0.5 rounded">{twilioNumber}</code>
               </div>
             )}
-            {wabaId && (
+            {accountSid && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">WABA ID:</span>
-                <code className="text-xs bg-muted px-2 py-0.5 rounded">{wabaId}</code>
+                <span className="text-muted-foreground">Account SID (últimos 4):</span>
+                <code className="text-xs bg-muted px-2 py-0.5 rounded">{accountSid.slice(-4)}</code>
               </div>
             )}
           </div>

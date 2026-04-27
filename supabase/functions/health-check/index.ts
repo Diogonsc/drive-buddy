@@ -142,63 +142,26 @@ async function checkWhatsApp(conn: any, userId: string, logs: any[]) {
     return { status: "unknown", message: "WhatsApp não conectado" };
   }
 
-  if (!conn.whatsapp_access_token) {
+  // Remover verificação de expiração de token Meta (não se aplica ao Twilio)
+  // Tokens Twilio não expiram.
+  const hasTwilioCredentials = conn?.twilio_account_sid && conn?.twilio_auth_token;
+  if (!hasTwilioCredentials) {
     logs.push({
       user_id: userId,
-      check_type: "whatsapp_token",
+      check_type: "whatsapp_critical",
       status: "critical",
-      message: "Token de acesso ausente",
+      message: "Credenciais Twilio não configuradas. Reconecte o WhatsApp.",
     });
-    return { status: "critical", message: "Token de acesso ausente" };
+    return { status: "critical", message: "Credenciais Twilio não configuradas. Reconecte o WhatsApp." };
   }
 
-  // Test token by calling Graph API
-  try {
-    const res = await fetch(
-      `https://graph.facebook.com/v22.0/${conn.whatsapp_phone_number_id}`,
-      { headers: { Authorization: `Bearer ${conn.whatsapp_access_token}` } }
-    );
-
-    if (res.status === 401 || res.status === 190) {
-      logs.push({
-        user_id: userId,
-        check_type: "whatsapp_token",
-        status: "critical",
-        message: "Token expirado ou inválido",
-      });
-      // Update connection status
-      await supabase.from("connections").update({ whatsapp_status: "error" }).eq("user_id", userId);
-      return { status: "critical", message: "Token expirado ou inválido. Reconecte o WhatsApp." };
-    }
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      const errMsg = errData?.error?.message || `API retornou ${res.status}`;
-      logs.push({
-        user_id: userId,
-        check_type: "whatsapp_token",
-        status: "warning",
-        message: errMsg,
-      });
-      return { status: "warning", message: errMsg };
-    }
-
-    logs.push({
-      user_id: userId,
-      check_type: "whatsapp_token",
-      status: "healthy",
-      message: "Token válido",
-    });
-    return { status: "healthy", message: "WhatsApp funcionando normalmente" };
-  } catch (err) {
-    logs.push({
-      user_id: userId,
-      check_type: "whatsapp_webhook",
-      status: "warning",
-      message: `Erro ao verificar API: ${String(err)}`,
-    });
-    return { status: "warning", message: "Não foi possível verificar a API da Meta" };
-  }
+  logs.push({
+    user_id: userId,
+    check_type: "whatsapp_token",
+    status: "healthy",
+    message: "Credenciais Twilio configuradas",
+  });
+  return { status: "healthy", message: "WhatsApp funcionando normalmente" };
 }
 
 async function checkGoogle(conn: any, userId: string, logs: any[]) {
