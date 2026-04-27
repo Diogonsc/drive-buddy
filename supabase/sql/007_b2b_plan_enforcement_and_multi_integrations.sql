@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS public.google_drive_accounts (
   access_token TEXT,
   refresh_token TEXT,
   token_expires_at TIMESTAMPTZ,
-  root_folder_path TEXT NOT NULL DEFAULT '/WhatsApp Uploads',
+  root_folder_path TEXT NOT NULL DEFAULT '/SwiftWapDrive',
   root_folder_id TEXT,
   status connection_status NOT NULL DEFAULT 'disconnected',
   connected_at TIMESTAMPTZ,
@@ -217,7 +217,7 @@ SELECT
   c.google_access_token,
   c.google_refresh_token,
   c.google_token_expires_at,
-  COALESCE(c.google_root_folder, '/WhatsApp Uploads'),
+  COALESCE(c.google_root_folder, '/SwiftWapDrive'),
   COALESCE(c.google_status, 'disconnected')::connection_status,
   c.google_connected_at
 FROM public.connections c

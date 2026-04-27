@@ -73,7 +73,7 @@ CREATE TABLE public.connections (
   google_token_expires_at TIMESTAMPTZ,
   google_status connection_status DEFAULT 'disconnected',
   google_connected_at TIMESTAMPTZ,
-  google_root_folder TEXT DEFAULT '/WhatsApp Uploads',
+  google_root_folder TEXT DEFAULT '/SwiftWapDrive',
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),

@@ -1,40 +1,40 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useConnections } from "@/hooks/useConnections";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  MessageSquare,
-  HardDrive,
-  FolderTree,
-  Save,
-  Loader2,
-  Shield,
-  Link as LinkIcon,
-  RefreshCw,
-  Trash2,
+    FolderTree,
+    HardDrive,
+    Link as LinkIcon,
+    Loader2,
+    MessageSquare,
+    RefreshCw,
+    Save,
+    Shield,
+    Trash2,
 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 const VALID_TABS = ["whatsapp", "google", "routing", "general"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
-type ConnectionStatus = "connected" | "disconnected" | "pending" | "error";
 type RuleFileType = "image" | "video" | "audio" | "document" | "all";
 
 interface SubscriptionInfo {
@@ -43,37 +43,6 @@ interface SubscriptionInfo {
   files_used_current_month: number | null;
   whatsapp_numbers_limit: number;
   google_accounts_limit: number;
-}
-
-interface WhatsAppConnection {
-  id: string;
-  label: string | null;
-  phone_number_id: string;
-  twilio_account_sid: string | null;
-  customer_phone_number: string | null;
-  twilio_whatsapp_number: string | null;
-  twilio_subaccount_sid: string | null;
-  status: ConnectionStatus;
-  connected_at: string | null;
-}
-
-interface GoogleDriveAccount {
-  id: string;
-  label: string | null;
-  account_email: string | null;
-  status: ConnectionStatus;
-  connected_at: string | null;
-  root_folder_path: string;
-}
-
-interface RoutingRule {
-  id: string;
-  whatsapp_connection_id: string;
-  google_drive_account_id: string;
-  file_type: "image" | "video" | "audio" | "document" | null;
-  is_default: boolean;
-  is_active: boolean;
-  created_at: string;
 }
 
 interface GeneralConfigState {
@@ -98,16 +67,19 @@ export default function Settings() {
     setSearchParams({ tab }, { replace: true });
   };
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshingGoogle, setIsRefreshingGoogle] = useState<string | null>(null);
 
   const [newGoogleLabel, setNewGoogleLabel] = useState("");
   const [folderDrafts, setFolderDrafts] = useState<Record<string, string>>({});
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-  const [whatsappConnections, setWhatsappConnections] = useState<WhatsAppConnection[]>([]);
-  const [googleAccounts, setGoogleAccounts] = useState<GoogleDriveAccount[]>([]);
-  const [routingRules, setRoutingRules] = useState<RoutingRule[]>([]);
+  const {
+    isLoading: isLoadingConnections,
+    whatsappConnections,
+    googleAccounts,
+    routingRules,
+    refetch: refetchConnections,
+  } = useConnections(user?.id);
   const [generalConfig, setGeneralConfig] = useState<GeneralConfigState>({
     autoSyncEnabled: true,
     syncImages: true,
@@ -146,9 +118,6 @@ export default function Settings() {
       const [
         { data: subscriptionData },
         { data: settingsData },
-        { data: waData },
-        { data: googleData },
-        { data: rulesData },
       ] = await Promise.all([
         supabase
           .from("subscriptions")
@@ -160,21 +129,7 @@ export default function Settings() {
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle(),
-        supabase
-          .from("whatsapp_connections")
-          .select("id, label, phone_number_id, customer_phone_number, twilio_whatsapp_number, twilio_subaccount_sid, twilio_account_sid, status, connected_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("google_drive_accounts")
-          .select("id, label, account_email, status, connected_at, root_folder_path")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("media_routing_rules")
-          .select("id, whatsapp_connection_id, google_drive_account_id, file_type, is_default, is_active, created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
+        refetchConnections(),
       ]);
 
       if (subscriptionData) {
@@ -200,29 +155,23 @@ export default function Settings() {
         });
       }
 
-      const waRows = (waData || []) as unknown as WhatsAppConnection[];
-      const googleRows = (googleData || []) as unknown as GoogleDriveAccount[];
-      const ruleRows = (rulesData || []) as unknown as RoutingRule[];
-
-      setWhatsappConnections(waRows);
-      setGoogleAccounts(googleRows);
-      setRoutingRules(ruleRows);
-      setFolderDrafts(
-        Object.fromEntries(
-          googleRows.map((account) => [account.id, account.root_folder_path || "/WhatsApp Uploads"]),
-        ),
-      );
     } catch (error) {
       console.error(error);
       toast.error("Erro ao carregar configurações");
-    } finally {
-      setIsLoading(false);
     }
-  }, [user]);
+  }, [refetchConnections, user]);
 
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  useEffect(() => {
+    setFolderDrafts(
+      Object.fromEntries(
+        googleAccounts.map((account) => [account.id, account.root_folder_path || "/SwiftWapDrive"]),
+      ),
+    );
+  }, [googleAccounts]);
 
   const handleSaveGeneral = async () => {
     if (!user) return;
@@ -338,7 +287,7 @@ export default function Settings() {
   };
 
   const handleSaveGoogleFolder = async (accountId: string) => {
-    const folderPath = (folderDrafts[accountId] || "").trim() || "/WhatsApp Uploads";
+    const folderPath = (folderDrafts[accountId] || "").trim() || "/SwiftWapDrive";
     try {
       const { error } = await supabase
         .from("google_drive_accounts")
@@ -428,7 +377,7 @@ export default function Settings() {
     return <Badge variant="outline">Desconectado</Badge>;
   };
 
-  const ruleTypeLabel = (fileType: RoutingRule["file_type"]) => {
+  const ruleTypeLabel = (fileType: (typeof routingRules)[number]["file_type"]) => {
     if (!fileType) return "Todos os tipos";
     if (fileType === "image") return "Imagens";
     if (fileType === "video") return "Vídeos";
@@ -447,7 +396,7 @@ export default function Settings() {
     googleAccounts.find((item) => item.id === id)?.account_email ||
     id;
 
-  if (isLoading) {
+  if (isLoadingConnections) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-64">
@@ -574,11 +523,11 @@ export default function Settings() {
                     </div>
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
                       <Input
-                        value={folderDrafts[account.id] || "/WhatsApp Uploads"}
+                        value={folderDrafts[account.id] || "/SwiftWapDrive"}
                         onChange={(event) =>
                           setFolderDrafts((prev) => ({ ...prev, [account.id]: event.target.value }))
                         }
-                        placeholder="/WhatsApp Uploads"
+                        placeholder="/SwiftWapDrive"
                       />
                       <Button variant="outline" onClick={() => handleSaveGoogleFolder(account.id)}>
                         Salvar pasta

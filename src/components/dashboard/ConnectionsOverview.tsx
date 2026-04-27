@@ -56,7 +56,7 @@ export function ConnectionsOverview({
           googleDriveStatus === "connected" && googleDriveEmail
             ? [
                 { label: "Conta", value: googleDriveEmail },
-                { label: "Pasta raiz", value: "/WhatsApp Uploads" },
+                { label: "Pasta raiz", value: "/SwiftWapDrive" },
               ]
             : undefined
         }

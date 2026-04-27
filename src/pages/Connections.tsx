@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConnections } from "@/hooks/useConnections";
 import {
   CheckCircle2,
   XCircle,
@@ -19,76 +20,35 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 
-type ConnectionStatus = "connected" | "disconnected" | "pending" | "error";
-
 interface SubscriptionInfo {
   whatsapp_numbers_limit: number;
   google_accounts_limit: number;
 }
 
-interface WhatsAppConnection {
-  id: string;
-  label: string | null;
-  phone_number_id: string;
-  twilio_account_sid: string | null;
-  customer_phone_number: string | null;
-  twilio_whatsapp_number: string | null;
-  twilio_subaccount_sid: string | null;
-  status: ConnectionStatus;
-  connected_at: string | null;
-}
-
-interface GoogleDriveAccount {
-  id: string;
-  label: string | null;
-  account_email: string | null;
-  status: ConnectionStatus;
-  connected_at: string | null;
-}
-
-interface RoutingRule {
-  id: string;
-  whatsapp_connection_id: string;
-  google_drive_account_id: string;
-  file_type: "image" | "video" | "audio" | "document" | null;
-  is_default: boolean;
-  is_active: boolean;
-}
-
 export default function Connections() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-  const [whatsappConnections, setWhatsappConnections] = useState<WhatsAppConnection[]>([]);
-  const [googleAccounts, setGoogleAccounts] = useState<GoogleDriveAccount[]>([]);
-  const [routingRules, setRoutingRules] = useState<RoutingRule[]>([]);
+  const {
+    isLoading: isLoadingConnections,
+    whatsappConnections,
+    googleAccounts,
+    routingRules,
+    refetch: refetchConnections,
+  } = useConnections(user?.id);
 
   const loadConnections = useCallback(async () => {
     if (!user) return;
 
     try {
-      const [{ data: sub }, { data: wa }, { data: google }, { data: rules }] = await Promise.all([
+      const [{ data: sub }] = await Promise.all([
         supabase
           .from("subscriptions")
           .select("whatsapp_numbers_limit, google_accounts_limit")
           .eq("user_id", user.id)
           .maybeSingle(),
-        supabase
-          .from("whatsapp_connections")
-          .select("id, label, phone_number_id, customer_phone_number, twilio_whatsapp_number, twilio_subaccount_sid, twilio_account_sid, status, connected_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("google_drive_accounts")
-          .select("id, label, account_email, status, connected_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("media_routing_rules")
-          .select("id, whatsapp_connection_id, google_drive_account_id, file_type, is_default, is_active")
-          .eq("user_id", user.id),
+        refetchConnections(),
       ]);
 
       if (sub) {
@@ -97,16 +57,11 @@ export default function Connections() {
           google_accounts_limit: sub.google_accounts_limit || 1,
         });
       }
-      setWhatsappConnections((wa || []) as unknown as WhatsAppConnection[]);
-      setGoogleAccounts((google || []) as unknown as GoogleDriveAccount[]);
-      setRoutingRules((rules || []) as unknown as RoutingRule[]);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao carregar conexões");
-    } finally {
-      setIsLoading(false);
     }
-  }, [user]);
+  }, [refetchConnections, user]);
 
   useEffect(() => {
     loadConnections();
@@ -176,7 +131,7 @@ export default function Connections() {
     );
   };
 
-  const getRuleTypeLabel = (fileType: RoutingRule["file_type"]) => {
+  const getRuleTypeLabel = (fileType: (typeof routingRules)[number]["file_type"]) => {
     if (!fileType) return "Todos";
     if (fileType === "image") return "Imagens";
     if (fileType === "video") return "Vídeos";
@@ -195,7 +150,7 @@ export default function Connections() {
     googleAccounts.find((row) => row.id === id)?.account_email ||
     id;
 
-  if (isLoading) {
+  if (isLoadingConnections) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-64">

@@ -15,7 +15,7 @@ const corsHeaders = {
 type SyncFileType = "image" | "video" | "audio" | "document";
 
 function normalizeFolder(path: string | null | undefined): string {
-  const cleaned = (path || "/WhatsApp Uploads").trim().replace(/\/+/g, "/");
+  const cleaned = (path || "/SwiftWapDrive").trim().replace(/\/+/g, "/");
   return cleaned.startsWith("/") ? cleaned : `/${cleaned}`;
 }
 
@@ -34,6 +34,7 @@ function buildFolderPath(
   fileType: SyncFileType,
   receivedAt: string,
   folderStructure: string,
+  senderIdentifier: string,
 ): string {
   const date = new Date(receivedAt || Date.now());
   const yyyy = date.getUTCFullYear().toString();
@@ -42,10 +43,10 @@ function buildFolderPath(
   const typeFolder = folderNameByType(fileType);
 
   const structures: Record<string, string[]> = {
-    date_type: [yyyy, `${mm}-${dd}`, typeFolder],
-    type_date: [typeFolder, yyyy, `${mm}-${dd}`],
-    type: [typeFolder],
-    date: [yyyy, `${mm}-${dd}`],
+    date_type: [yyyy, `${mm}-${dd}`, senderIdentifier, typeFolder],
+    type_date: [typeFolder, yyyy, `${mm}-${dd}`, senderIdentifier],
+    type: [senderIdentifier, typeFolder],
+    date: [yyyy, `${mm}-${dd}`, senderIdentifier],
   };
 
   const parts = structures[folderStructure] || structures.date_type;
@@ -492,7 +493,11 @@ Deno.serve(async (req) => {
       (accountRow.root_folder_path as string | null) ||
       (accountRow.google_root_folder as string | null) ||
       "/SwiftWapDrive";
-    const targetPath = buildFolderPath(baseFolderPath, fileType, media.received_at, folderStructure);
+    const rawSender = (media.sender_name as string | null)?.trim() ||
+                      (media.sender_phone as string | null)?.trim() ||
+                      'desconhecido'
+    const senderIdentifier = rawSender.replace(/[^a-zA-Z0-9\s\+\-\_]/g, '').trim().slice(0, 50)
+    const targetPath = buildFolderPath(baseFolderPath, fileType, media.received_at, folderStructure, senderIdentifier);
     const targetFolderId = await ensureDrivePath(googleToken!, targetPath);
 
     const { fileId: driveFileId, webViewLink } = await uploadToGoogleDrive(

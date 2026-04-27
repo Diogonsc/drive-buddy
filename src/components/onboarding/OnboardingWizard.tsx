@@ -164,7 +164,7 @@ export function OnboardingWizard({
                 )}
 
                 <p className="text-xs text-muted-foreground">
-                  Suas mídias serão salvas na pasta <code>/WhatsApp Uploads</code>{" "}
+                    Suas mídias serão salvas na pasta <code>/SwiftWapDrive</code>{" "}
                   do seu Google Drive, organizadas por data e tipo.
                 </p>
               </div>

@@ -64,7 +64,7 @@ Sem isso, mensagens enviadas para o número de negócio podem não gerar webhook
    - Ou no Supabase: tabela `media_files` deve ganhar uma nova linha com `status` indo de `pending` → `processing` → `completed`.
 
 3. **Conferir no Google Drive**  
-   O arquivo deve aparecer na pasta configurada (ex.: raiz ou “WhatsApp Uploads”).
+   O arquivo deve aparecer na pasta configurada (ex.: raiz ou “SwiftWapDrive”).
 
 4. **Se falhar**  
    - Ver logs da Edge Function `whatsapp-webhook` e `process-media` no Supabase (Logs).  

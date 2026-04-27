@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FolderOpen, Image, Video, FileAudio, FileText, ExternalLink, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { ExternalLink, FileAudio, FileText, FolderOpen, Image, Loader2, Video } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface FolderStats {
@@ -24,7 +24,7 @@ export default function Files() {
     { icon: FileAudio, name: "Áudios", count: 0, color: "text-orange-500", bgColor: "bg-orange-500/10" },
     { icon: FileText, name: "Documentos", count: 0, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
   ]);
-  const [rootFolder, setRootFolder] = useState("/WhatsApp Uploads");
+  const [rootFolder, setRootFolder] = useState("/SwiftWapDrive");
   const [googleDriveUrl, setGoogleDriveUrl] = useState<string | null>(null);
 
   useEffect(() => {

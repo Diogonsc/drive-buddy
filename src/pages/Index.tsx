@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { getOverallConnectionStatus, useConnections } from "@/hooks/useConnections";
 
 interface Metrics {
   totalFiles: number;
@@ -30,8 +31,6 @@ interface Metrics {
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [whatsappStatus, setWhatsappStatus] = useState<"connected" | "disconnected" | "pending" | "error">("disconnected");
-  const [googleDriveStatus, setGoogleDriveStatus] = useState<"connected" | "disconnected" | "pending" | "error">("disconnected");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [metrics, setMetrics] = useState<Metrics>({
@@ -45,38 +44,26 @@ const Index = () => {
     storageUsed: "0 B",
   });
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-  const [connection, setConnection] = useState<{
-    whatsapp_phone_number_id?: string;
-    whatsapp_business_account_id?: string;
-    whatsapp_connected_at?: string;
-    google_status?: string;
-    whatsapp_status?: string;
-  } | null>(null);
   const [lastMediaReceivedAt, setLastMediaReceivedAt] = useState<string | null>(null);
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const {
+    isLoading: isLoadingConnections,
+    whatsappConnections,
+    googleAccounts,
+    refetch: refetchConnections,
+  } = useConnections(user?.id);
 
-  // Carregar conexões e status
+  const whatsappPrimaryConnection = whatsappConnections[0];
+  const whatsappStatus = getOverallConnectionStatus(whatsappConnections);
+  const googleDriveStatus = getOverallConnectionStatus(googleAccounts);
+
+  // Carregar somente última mídia recebida; status vem do hook centralizado de conexões
   useEffect(() => {
     if (!user) return;
 
-    const loadConnections = async () => {
+    const loadLastMedia = async () => {
       try {
-        const { data, error } = await supabase
-          .from('connections')
-          .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_connected_at, google_status, google_connected_at')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        if (data) {
-          setWhatsappStatus((data.whatsapp_status as any) || 'disconnected');
-          setGoogleDriveStatus((data.google_status as any) || 'disconnected');
-          setConnection(data);
-        }
-
-        // Buscar última mensagem de mídia recebida
         const { data: lastMedia } = await supabase
           .from('media_files')
           .select('received_at')
@@ -89,11 +76,11 @@ const Index = () => {
           setLastMediaReceivedAt(lastMedia.received_at);
         }
       } catch (error) {
-        console.error('Error loading connections:', error);
+        console.error('Error loading last media:', error);
       }
     };
 
-    loadConnections();
+    loadLastMedia();
   }, [user]);
 
   // Carregar métricas
@@ -149,7 +136,7 @@ const Index = () => {
 
       const entries: LogEntry[] = (data || []).map(file => ({
         id: file.id,
-        mediaType: file.file_type as any,
+        mediaType: mapMediaType(file.file_type),
         fileName: file.file_name,
         sender: file.sender_phone || file.sender_name || 'Desconhecido',
         timestamp: new Date(file.received_at),
@@ -231,19 +218,8 @@ const Index = () => {
       // Chama a API para validar credenciais na Meta e atualizar status no banco
       const { data: verifyData } = await supabase.functions.invoke('whatsapp-verify-status');
 
-      // Refetch da connection para obter o status atualizado
-      const { data, error } = await supabase
-        .from('connections')
-        .select('whatsapp_status, whatsapp_phone_number_id, whatsapp_webhook_verify_token, whatsapp_connected_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setWhatsappStatus((data.whatsapp_status as any) || 'disconnected');
-        setConnection(prev => ({ ...prev, ...data }));
-      }
+      // Refetch do hook centralizado para obter status atualizado
+      await refetchConnections();
 
       // Buscar última mensagem
       const { data: lastMedia } = await supabase
@@ -358,7 +334,14 @@ const Index = () => {
     return 'pending';
   }
 
-  if (isLoading) {
+  function mapMediaType(fileType: string): "image" | "video" | "audio" | "document" {
+    if (fileType === "image" || fileType === "video" || fileType === "audio" || fileType === "document") {
+      return fileType;
+    }
+    return "document";
+  }
+
+  if (isLoading || isLoadingConnections) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-64">
@@ -368,13 +351,8 @@ const Index = () => {
     );
   }
 
-  const handleWhatsAppConnected = (data: any) => {
-    setWhatsappStatus(data?.status === 'connected' ? 'connected' : 'pending');
-    setConnection(prev => ({
-      ...prev,
-      whatsapp_phone_number_id: data?.phone_number_id,
-      whatsapp_business_account_id: data?.waba_id,
-    }));
+  const handleWhatsAppConnected = async (_data?: unknown) => {
+    await refetchConnections();
   };
 
   const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
@@ -427,7 +405,7 @@ const Index = () => {
         <ConnectionsOverview
           whatsappStatus={whatsappStatus}
           googleDriveStatus={googleDriveStatus}
-          whatsappNumber={connection?.whatsapp_phone_number_id || undefined}
+          whatsappNumber={whatsappPrimaryConnection?.phone_number_id || undefined}
           googleDriveEmail={googleDriveStatus === "connected" ? user?.email : undefined}
           onConnectWhatsApp={handleConnectWhatsApp}
           onConnectGoogleDrive={handleConnectGoogleDrive}
@@ -439,9 +417,9 @@ const Index = () => {
         <div className="mb-8 animate-fade-in" style={{ animationDelay: "150ms" }}>
           <WhatsAppStatusDetails
             status={whatsappStatus}
-            phoneNumberId={connection?.whatsapp_phone_number_id}
-            wabaId={connection?.whatsapp_business_account_id}
-            connectedAt={connection?.whatsapp_connected_at || undefined}
+            twilioNumber={whatsappPrimaryConnection?.twilio_whatsapp_number || whatsappPrimaryConnection?.phone_number_id}
+            accountSid={whatsappPrimaryConnection?.twilio_account_sid || undefined}
+            connectedAt={whatsappPrimaryConnection?.connected_at || undefined}
             lastMessageAt={lastMediaReceivedAt || undefined}
             onRefresh={handleRefreshWhatsAppStatus}
             onWhatsAppConnected={handleWhatsAppConnected}
