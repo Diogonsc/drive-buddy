@@ -31,7 +31,9 @@ interface WhatsAppConnection {
   label: string | null;
   phone_number_id: string;
   twilio_account_sid: string | null;
+  customer_phone_number: string | null;
   twilio_whatsapp_number: string | null;
+  twilio_subaccount_sid: string | null;
   status: ConnectionStatus;
   connected_at: string | null;
 }
@@ -75,7 +77,7 @@ export default function Connections() {
           .maybeSingle(),
         supabase
           .from("whatsapp_connections")
-          .select("id, label, phone_number_id, twilio_account_sid, twilio_whatsapp_number, status, connected_at")
+          .select("id, label, phone_number_id, customer_phone_number, twilio_whatsapp_number, twilio_subaccount_sid, twilio_account_sid, status, connected_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: true }),
         supabase
@@ -268,7 +270,7 @@ export default function Connections() {
               <div key={item.id} className="rounded-md border p-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">{item.label || item.twilio_whatsapp_number || item.phone_number_id}</p>
-                  <p className="text-xs text-muted-foreground">{item.twilio_whatsapp_number || item.phone_number_id}</p>
+                  <p className="text-xs text-muted-foreground">{item.twilio_whatsapp_number || "—"}</p>
                 </div>
                 {getStatusBadge(item.status)}
               </div>

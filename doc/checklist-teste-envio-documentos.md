@@ -8,7 +8,7 @@ Use este checklist para garantir que o fluxo completo funcione antes de testar c
 
 - [ ] **WhatsApp** → **Configuração** (menu lateral) → **Webhook** → **Editar**
 - [ ] **URL de retorno de chamada**:  
-  `https://unzeknvrevrsixvmnqca.supabase.co/functions/v1/whatsapp-webhook`
+  `https://lzjovvbgrqezlbyoybuk.supabase.co/functions/v1/whatsapp-webhook`
 - [ ] **Token de verificação**: `swiftwapdrivetoken@2026` (igual ao salvo no app)
 - [ ] Clicar em **Verificar e salvar**
 - [ ] Em **Gerenciar**, marcar o campo **`messages`** (obrigatório para receber mídia)

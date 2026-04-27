@@ -84,16 +84,11 @@ async function downloadTwilioMedia(
   authToken: string,
 ): Promise<{ buffer: ArrayBuffer; contentType: string }> {
   const credentials = btoa(`${accountSid}:${authToken}`)
-
   const res = await fetch(mediaUrl, {
-    headers: {
-      Authorization: `Basic ${credentials}`,
-    },
+    headers: { Authorization: `Basic ${credentials}` },
   })
 
-  if (!res.ok) {
-    throw new Error(`Falha ao baixar mídia do Twilio: HTTP ${res.status} em ${mediaUrl}`)
-  }
+  if (!res.ok) throw new Error(`Falha ao baixar mídia: HTTP ${res.status}`)
 
   const buffer = await res.arrayBuffer()
   const contentType = res.headers.get('content-type') || 'application/octet-stream'
@@ -212,25 +207,25 @@ async function resolveTwilioCredentials(media: Record<string, unknown>): Promise
   if (whatsappConnectionId) {
     const { data } = await supabase
       .from('whatsapp_connections')
-      .select('twilio_account_sid, twilio_auth_token')
+      .select('twilio_subaccount_sid, twilio_subaccount_auth_token')
       .eq('id', whatsappConnectionId)
       .maybeSingle()
 
-    if (data?.twilio_account_sid && data?.twilio_auth_token) {
+    // Usa credenciais da subaccount do cliente se disponíveis
+    if (data?.twilio_subaccount_sid && data?.twilio_subaccount_auth_token) {
       return {
-        accountSid: data.twilio_account_sid as string,
-        authToken: data.twilio_auth_token as string,
+        accountSid: data.twilio_subaccount_sid as string,
+        authToken: data.twilio_subaccount_auth_token as string,
       }
     }
   }
 
-  // Fallback: credenciais globais dos Secrets
+  // Fallback: credenciais globais (sandbox/teste)
   const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
   const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-
   if (accountSid && authToken) return { accountSid, authToken }
 
-  throw new Error('Credenciais Twilio não encontradas. Reconecte o WhatsApp.')
+  throw new Error('Credenciais Twilio não encontradas.')
 }
 
 async function resolveGoogleAccount(media: Record<string, unknown>) {
@@ -437,7 +432,7 @@ Deno.serve(async (req) => {
 
     const { accountSid, authToken } = await resolveTwilioCredentials(media as Record<string, unknown>)
     const { buffer: fileBuffer, contentType } = await downloadTwilioMedia(
-      media.whatsapp_media_id, // agora é a URL direta da mídia Twilio
+      media.whatsapp_media_id,
       accountSid,
       authToken,
     )

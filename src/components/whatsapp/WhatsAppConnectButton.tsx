@@ -1,20 +1,36 @@
+// src/components/whatsapp/WhatsAppConnectButton.tsx
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle2, XCircle, Loader2, MessageSquare, ExternalLink } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import {
+  CheckCircle2, XCircle, Loader2, MessageSquare,
+  Phone, Wifi, ShieldCheck,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
 import { cn } from '@/lib/utils'
 
-type ConnectStatus = 'idle' | 'testing' | 'saving' | 'success' | 'error'
+type ProvisionStep = 'idle' | 'creating_account' | 'searching_number' | 'purchasing' | 'configuring' | 'success' | 'error'
+
+const STEP_LABELS: Record<ProvisionStep, string> = {
+  idle: 'Configurar WhatsApp',
+  creating_account: 'Criando conta isolada...',
+  searching_number: 'Buscando número disponível...',
+  purchasing: 'Adquirindo número...',
+  configuring: 'Configurando recebimento de mídias...',
+  success: 'WhatsApp configurado!',
+  error: 'Erro na configuração',
+}
 
 interface WhatsAppConnectButtonProps {
-  onSuccess?: (data: { status: string; whatsapp_number?: string }) => void
+  onSuccess?: (data: { twilio_number?: string; status: string }) => void
   onError?: (error: string) => void
   className?: string
   currentStatus?: 'connected' | 'disconnected' | 'pending' | 'error'
+  connectedNumber?: string
 }
 
 export function WhatsAppConnectButton({
@@ -22,156 +38,216 @@ export function WhatsAppConnectButton({
   onError,
   className,
   currentStatus = 'disconnected',
+  connectedNumber,
 }: WhatsAppConnectButtonProps) {
-  const [status, setStatus] = useState<ConnectStatus>('idle')
+  const [step, setStep] = useState<ProvisionStep>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [accountSid, setAccountSid] = useState('')
-  const [authToken, setAuthToken] = useState('')
-  const [whatsappNumber, setWhatsappNumber] = useState('') // ex: +14155238886
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [countryCode, setCountryCode] = useState('BR')
+  const [assignedNumber, setAssignedNumber] = useState<string | null>(null)
 
   const handleConnect = async () => {
     setErrorMessage(null)
 
-    if (!accountSid.trim() || !authToken.trim() || !whatsappNumber.trim()) {
-      setErrorMessage('Preencha todos os campos.')
+    if (!customerPhone.trim()) {
+      setErrorMessage('Informe o número do seu WhatsApp Business.')
       return
     }
 
     try {
-      // 1. Testar credenciais
-      setStatus('testing')
-      const { data: testData, error: testError } = await supabase.functions.invoke(
-        'whatsapp-test-connection',
-        { body: { accountSid, authToken, whatsappNumber } },
-      )
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Sessão expirada. Faça login novamente.')
 
-      if (testError || !testData?.success) {
-        throw new Error(testData?.error || testError?.message || 'Credenciais inválidas.')
-      }
+      // Simula os steps visuais enquanto a função roda
+      setStep('creating_account')
+      await new Promise(r => setTimeout(r, 800))
+      setStep('searching_number')
+      await new Promise(r => setTimeout(r, 600))
+      setStep('purchasing')
 
-      // 2. Salvar conexão
-      setStatus('saving')
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Sessão expirada. Faça login novamente.')
+      const { data, error } = await supabase.functions.invoke('twilio-provision-number', {
+        body: {
+          customerPhone: customerPhone.trim(),
+          countryCode,
+          label: `WhatsApp ${customerPhone.slice(-4)}`,
+        },
+      })
 
-      const formattedNumber = whatsappNumber.startsWith('whatsapp:')
-        ? whatsappNumber
-        : `whatsapp:${whatsappNumber.startsWith('+') ? whatsappNumber : '+' + whatsappNumber}`
+      if (error) throw new Error(error.message || 'Erro ao provisionar número')
+      if (!data?.success) throw new Error(data?.error || 'Provisionamento falhou')
 
-      const { error: upsertError } = await supabase
-        .from('whatsapp_connections')
-        .upsert({
-          user_id: user.id,
-          label: `WhatsApp ${whatsappNumber.slice(-4)}`,
-          phone_number_id: whatsappNumber,
-          twilio_account_sid: accountSid.trim(),
-          twilio_auth_token: authToken.trim(),
-          twilio_whatsapp_number: formattedNumber,
-          provider: 'twilio',
-          status: 'connected',
-          connected_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,phone_number_id' })
+      setStep('configuring')
+      await new Promise(r => setTimeout(r, 600))
 
-      if (upsertError) throw new Error(upsertError.message)
-
-      setStatus('success')
-      toast.success('WhatsApp conectado com sucesso!')
-      onSuccess?.({ status: 'connected', whatsapp_number: formattedNumber })
+      setStep('success')
+      setAssignedNumber(data.twilio_number)
+      toast.success(`Número ${data.twilio_number} configurado com sucesso!`)
+      onSuccess?.({ twilio_number: data.twilio_number, status: 'connected' })
     } catch (err: unknown) {
       const msg = (err as Error)?.message || 'Erro ao conectar. Tente novamente.'
-      setStatus('error')
+      setStep('error')
       setErrorMessage(msg)
       toast.error(msg)
       onError?.(msg)
     }
   }
 
-  if (currentStatus === 'connected' && status === 'idle') {
+  // Já conectado
+  if (currentStatus === 'connected' && step === 'idle') {
     return (
-      <div className={cn('flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4', className)}>
-        <CheckCircle2 className="h-5 w-5 shrink-0" />
-        <span>WhatsApp conectado via Twilio.</span>
+      <div className={cn('rounded-lg bg-primary/5 p-4 space-y-2', className)}>
+        <div className="flex items-center gap-2 text-primary">
+          <CheckCircle2 className="h-5 w-5 shrink-0" />
+          <span className="font-medium text-sm">WhatsApp configurado</span>
+          <Badge variant="default" className="ml-auto">Ativo</Badge>
+        </div>
+        {connectedNumber && (
+          <p className="text-xs text-muted-foreground pl-7">
+            Número atribuído: <span className="font-mono font-medium">{connectedNumber}</span>
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground pl-7">
+          Mídias recebidas neste número serão salvas automaticamente no Google Drive.
+        </p>
       </div>
     )
   }
 
-  if (status === 'success') {
+  if (step === 'success') {
     return (
-      <div className={cn('flex items-center gap-2 text-sm text-primary rounded-lg bg-primary/5 p-4', className)}>
-        <CheckCircle2 className="h-5 w-5 shrink-0" />
-        <span>WhatsApp conectado com sucesso!</span>
+      <div className={cn('rounded-lg bg-primary/5 p-4 space-y-2', className)}>
+        <div className="flex items-center gap-2 text-primary">
+          <CheckCircle2 className="h-5 w-5 shrink-0" />
+          <span className="font-medium text-sm">WhatsApp configurado com sucesso!</span>
+        </div>
+        {assignedNumber && (
+          <p className="text-xs text-muted-foreground pl-7">
+            Número atribuído: <span className="font-mono font-medium">{assignedNumber}</span>
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground pl-7">
+          Compartilhe este número com seus clientes para receber mídias automaticamente.
+        </p>
       </div>
     )
   }
 
-  const isProcessing = status === 'testing' || status === 'saving'
+  if (step === 'error') {
+    return (
+      <div className={cn('space-y-3', className)}>
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+        <Button onClick={() => { setStep('idle'); setErrorMessage(null) }} variant="outline" className="w-full">
+          Tentar novamente
+        </Button>
+      </div>
+    )
+  }
+
+  const isProcessing = step !== 'idle'
 
   return (
     <div className={cn('space-y-4', className)}>
-      {errorMessage && (
+      {/* Explicação do fluxo */}
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-3 text-sm">
+        <p className="font-medium">Como funciona:</p>
+        <div className="space-y-2 text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-primary shrink-0" />
+            <span>Informe seu número WhatsApp Business abaixo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Wifi className="h-4 w-4 text-primary shrink-0" />
+            <span>A plataforma configura um número dedicado para receber suas mídias</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+            <span>Tudo automático — sem configurações técnicas</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="customerPhone">Seu número WhatsApp Business</Label>
+          <Input
+            id="customerPhone"
+            placeholder="+55 11 99999-9999"
+            value={customerPhone}
+            onChange={e => setCustomerPhone(e.target.value)}
+            disabled={isProcessing}
+          />
+          <p className="text-xs text-muted-foreground">
+            Formato internacional com código do país (ex: +55 para Brasil)
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="countryCode">País do número a ser atribuído</Label>
+          <select
+            id="countryCode"
+            value={countryCode}
+            onChange={e => setCountryCode(e.target.value)}
+            disabled={isProcessing}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="BR">🇧🇷 Brasil</option>
+            <option value="US">🇺🇸 Estados Unidos</option>
+            <option value="PT">🇵🇹 Portugal</option>
+            <option value="GB">🇬🇧 Reino Unido</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Step progress visual */}
+      {isProcessing && (
+        <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+          {(['creating_account', 'searching_number', 'purchasing', 'configuring'] as ProvisionStep[]).map((s) => {
+            const steps = ['creating_account', 'searching_number', 'purchasing', 'configuring']
+            const currentIdx = steps.indexOf(step)
+            const thisIdx = steps.indexOf(s)
+            const isDone = thisIdx < currentIdx
+            const isCurrent = s === step
+            return (
+              <div key={s} className={cn(
+                'flex items-center gap-2 text-xs transition-colors',
+                isDone ? 'text-primary' : isCurrent ? 'text-foreground' : 'text-muted-foreground',
+              )}>
+                {isDone ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                ) : isCurrent ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                ) : (
+                  <div className="h-3.5 w-3.5 rounded-full border border-current shrink-0" />
+                )}
+                <span>{STEP_LABELS[s]}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {errorMessage && !isProcessing && (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       )}
 
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="accountSid">Account SID</Label>
-          <Input
-            id="accountSid"
-            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            value={accountSid}
-            onChange={e => setAccountSid(e.target.value)}
-            disabled={isProcessing}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="authToken">Auth Token</Label>
-          <Input
-            id="authToken"
-            type="password"
-            placeholder="Seu Auth Token da Twilio"
-            value={authToken}
-            onChange={e => setAuthToken(e.target.value)}
-            disabled={isProcessing}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="whatsappNumber">Número WhatsApp Twilio</Label>
-          <Input
-            id="whatsappNumber"
-            placeholder="+14155238886"
-            value={whatsappNumber}
-            onChange={e => setWhatsappNumber(e.target.value)}
-            disabled={isProcessing}
-          />
-          <p className="text-xs text-muted-foreground">
-            Número no formato internacional. Sandbox: +14155238886
-          </p>
-        </div>
-      </div>
-
-      <Button onClick={handleConnect} disabled={isProcessing} className="w-full gap-2">
+      <Button
+        onClick={handleConnect}
+        disabled={isProcessing}
+        className="w-full gap-2"
+      >
         {isProcessing ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <MessageSquare className="h-4 w-4" />
         )}
-        {status === 'testing' ? 'Validando credenciais...' : status === 'saving' ? 'Salvando...' : 'Conectar WhatsApp'}
+        {STEP_LABELS[step]}
       </Button>
-
-      <a
-        href="https://console.twilio.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ExternalLink className="h-3 w-3" />
-        Obter credenciais no Twilio Console
-      </a>
     </div>
   )
 }

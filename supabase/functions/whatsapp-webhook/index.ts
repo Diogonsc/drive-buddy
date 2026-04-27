@@ -1,36 +1,26 @@
 // supabase/functions/whatsapp-webhook/index.ts
-// Swiftwapdrive - WhatsApp Webhook via Twilio
+// Swiftwapdrive - Webhook central Twilio (modelo subaccount)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-//import { hmac } from 'https://deno.land/x/hmac@v2.0.1/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
 }
 
-// Valida assinatura Twilio (HMAC-SHA1)
-// Docs: https://www.twilio.com/docs/usage/webhooks/webhooks-security
 async function validateTwilioSignature(
   req: Request,
   rawBody: string,
   webhookUrl: string,
+  authToken: string,
 ): Promise<boolean> {
   const twilioSignature = req.headers.get('x-twilio-signature')
   if (!twilioSignature) return false
 
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-  if (!authToken) {
-    console.error('TWILIO_AUTH_TOKEN não configurado')
-    return false
-  }
-
-  // Monta string para assinar: URL + params ordenados
   const params = new URLSearchParams(rawBody)
   const sortedKeys = Array.from(params.keys()).sort()
   const stringToSign = webhookUrl + sortedKeys.map(k => k + params.get(k)).join('')
 
-  // HMAC-SHA1 via Web Crypto API (nativo no Deno, sem imports externos)
   const encoder = new TextEncoder()
   const key = await crypto.subtle.importKey(
     'raw',
@@ -41,20 +31,14 @@ async function validateTwilioSignature(
   )
   const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(stringToSign))
   const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
-
   return signature === twilioSignature
 }
 
 function getExtensionFromMime(mime: string): string {
   const map: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'video/mp4': 'mp4',
-    'audio/mpeg': 'mp3',
-    'audio/ogg': 'ogg',
-    'audio/amr': 'amr',
-    'application/pdf': 'pdf',
-    'application/msword': 'doc',
+    'image/jpeg': 'jpg', 'image/png': 'png', 'video/mp4': 'mp4',
+    'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/amr': 'amr',
+    'application/pdf': 'pdf', 'application/msword': 'doc',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
   }
   return map[mime] || 'bin'
@@ -67,95 +51,68 @@ function getFileType(mime: string): 'image' | 'video' | 'audio' | 'document' {
   return 'document'
 }
 
-async function findConnectionByTwilioNumber(
-  supabase: ReturnType<typeof createClient>,
-  toNumber: string, // formato: whatsapp:+14155238886
-) {
-  const { data } = await supabase
-    .from('whatsapp_connections')
-    .select('id, user_id, twilio_account_sid, twilio_auth_token')
-    .eq('twilio_whatsapp_number', toNumber)
-    .in('status', ['connected', 'pending'])
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  if (!data) return null
-
-  return {
-    connectionId: data.id as string,
-    userId: data.user_id as string,
-    accountSid: data.twilio_account_sid as string,
-    authToken: data.twilio_auth_token as string,
-  }
-}
-
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+  if (req.method === 'GET') return new Response('OK', { status: 200 })
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
-  // Twilio envia GET para verificação de URL (opcional, mas aceitar graciosamente)
-  if (req.method === 'GET') {
-    return new Response('OK', { status: 200 })
-  }
-
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
-  }
-
   const rawBody = await req.text()
-
-  // Validação de assinatura Twilio
-  // Em desenvolvimento/sandbox, pode-se desabilitar via env SKIP_TWILIO_SIGNATURE_VALIDATION=true
-  const skipValidation = Deno.env.get('SKIP_TWILIO_SIGNATURE_VALIDATION') === 'true'
-  if (!skipValidation) {
-    const webhookUrl = req.url
-    const isValid = await validateTwilioSignature(req, rawBody, webhookUrl)
-    if (!isValid) {
-      console.error('Assinatura Twilio inválida')
-      return new Response('Forbidden', { status: 403 })
-    }
-  }
-
   const params = new URLSearchParams(rawBody)
 
-  // Campos principais do payload Twilio WhatsApp
   const messageSid = params.get('MessageSid') || ''
-  const from = params.get('From') || '' // ex: whatsapp:+5511999999999
-  const to = params.get('To') || '' // ex: whatsapp:+14155238886
+  const from = params.get('From') || ''       // whatsapp:+5511999999999
+  const to = params.get('To') || ''           // whatsapp:+5511XXXXXXXX (número Twilio do cliente)
   const profileName = params.get('ProfileName') || from
   const numMedia = parseInt(params.get('NumMedia') || '0', 10)
   const timestamp = new Date().toISOString()
 
-  // Sem mídia: ignorar (só texto)
   if (numMedia === 0) {
-    return new Response(
-      '<Response></Response>',
-      { status: 200, headers: { 'Content-Type': 'text/xml' } },
-    )
+    return new Response('<Response></Response>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/xml' },
+    })
   }
 
-  // Identificar conexão pelo número Twilio de destino (To)
-  const connection = await findConnectionByTwilioNumber(supabase, to)
+  // Busca conexão pelo número Twilio de destino
+  const { data: connection } = await supabase
+    .from('whatsapp_connections')
+    .select('id, user_id, twilio_subaccount_sid, twilio_subaccount_auth_token')
+    .eq('twilio_whatsapp_number', to)
+    .in('status', ['connected', 'pending'])
+    .maybeSingle()
+
   if (!connection) {
-    console.error(`Nenhuma conexão encontrada para número Twilio: ${to}`)
-    return new Response(
-      '<Response></Response>',
-      { status: 200, headers: { 'Content-Type': 'text/xml' } },
-    )
+    console.error(`[WEBHOOK] Nenhuma conexão para número: ${to}`)
+    return new Response('<Response></Response>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/xml' },
+    })
   }
 
-  // Processar cada mídia (Twilio suporta até 10 por mensagem: MediaUrl0..MediaUrl9)
+  // Valida assinatura usando credenciais da SUBACCOUNT do cliente
+  const skipValidation = Deno.env.get('SKIP_TWILIO_SIGNATURE_VALIDATION') === 'true'
+  if (!skipValidation && connection.twilio_subaccount_auth_token) {
+    const isValid = await validateTwilioSignature(
+      req,
+      rawBody,
+      req.url,
+      connection.twilio_subaccount_auth_token as string,
+    )
+    if (!isValid) {
+      console.error('[WEBHOOK] Assinatura inválida')
+      return new Response('Forbidden', { status: 403 })
+    }
+  }
+
+  // Processa cada mídia
   for (let i = 0; i < numMedia; i++) {
     const mediaUrl = params.get(`MediaUrl${i}`)
     const mimeType = params.get(`MediaContentType${i}`) || 'application/octet-stream'
-
     if (!mediaUrl) continue
 
     const mediaId = `${messageSid}_media${i}`
@@ -166,7 +123,6 @@ Deno.serve(async (req) => {
       .select('id')
       .eq('whatsapp_message_id', mediaId)
       .maybeSingle()
-
     if (exists) continue
 
     const fileType = getFileType(mimeType)
@@ -177,9 +133,9 @@ Deno.serve(async (req) => {
     const { data: mediaFile } = await supabase
       .from('media_files')
       .insert({
-        user_id: connection.userId,
-        whatsapp_connection_id: connection.connectionId,
-        whatsapp_media_id: mediaUrl, // No Twilio, guardamos a URL diretamente como media_id
+        user_id: connection.user_id,
+        whatsapp_connection_id: connection.id,
+        whatsapp_media_id: mediaUrl,
         whatsapp_message_id: mediaId,
         sender_phone: senderPhone,
         sender_name: profileName,
@@ -194,22 +150,21 @@ Deno.serve(async (req) => {
 
     if (!mediaFile) continue
 
-    // Confirmar conexão na primeira mensagem recebida
+    // Atualiza status para connected na primeira mensagem
     await supabase
       .from('whatsapp_connections')
       .update({ status: 'connected', connected_at: timestamp })
-      .eq('id', connection.connectionId)
+      .eq('id', connection.id)
       .eq('status', 'pending')
 
-    // Disparar processamento assíncrono (não aguardar — evita timeout do webhook)
+    // Dispara processamento assíncrono
     supabase.functions.invoke('process-media', {
       body: { mediaFileId: mediaFile.id },
-    }).catch(err => console.error('process-media invoke error:', err))
+    }).catch(err => console.error('[WEBHOOK] process-media error:', err))
   }
 
-  // Twilio exige resposta TwiML (pode ser vazio)
-  return new Response(
-    '<Response></Response>',
-    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/xml' } },
-  )
+  return new Response('<Response></Response>', {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+  })
 })

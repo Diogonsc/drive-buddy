@@ -16,8 +16,8 @@ SELECT cron.schedule(
   $$
   SELECT
     net.http_post(
-      url := 'https://unzeknvrevrsixvmnqca.supabase.co/functions/v1/health-check',
-      headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVuemVrbnZyZXZyc2l4dm1ucWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1OTM0OTUsImV4cCI6MjA4NTE2OTQ5NX0.Rds3ueeufOiF6f4832bXbvN-iQV-pRXhBIcJWqzt18U"}'::jsonb,
+      url := 'https://lzjovvbgrqezlbyoybuk.supabase.co/functions/v1/health-check',
+      headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6am92dmJncnFlemxieW95YnVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzkwMDcsImV4cCI6MjA5MjgxNTAwN30.GimDPiiGMy-YHeKAl8mUel7MT74WS_GaZsIAgzOVwgY"}'::jsonb,
       body := '{}'::jsonb
     ) AS request_id;
   $$

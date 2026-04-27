@@ -50,7 +50,9 @@ interface WhatsAppConnection {
   label: string | null;
   phone_number_id: string;
   twilio_account_sid: string | null;
+  customer_phone_number: string | null;
   twilio_whatsapp_number: string | null;
+  twilio_subaccount_sid: string | null;
   status: ConnectionStatus;
   connected_at: string | null;
 }
@@ -160,7 +162,7 @@ export default function Settings() {
           .maybeSingle(),
         supabase
           .from("whatsapp_connections")
-          .select("id, label, phone_number_id, twilio_account_sid, twilio_whatsapp_number, status, connected_at")
+          .select("id, label, phone_number_id, customer_phone_number, twilio_whatsapp_number, twilio_subaccount_sid, twilio_account_sid, status, connected_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: true }),
         supabase
@@ -513,9 +515,14 @@ export default function Settings() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{item.label || `WhatsApp ${(item.twilio_whatsapp_number || item.phone_number_id).slice(-4)}`}</p>
-                        <p className="text-xs text-muted-foreground">{item.twilio_whatsapp_number || item.phone_number_id}</p>
                         <p className="text-xs text-muted-foreground">
-                          SID: ...{item.twilio_account_sid?.slice(-4) || "----"}
+                          Número atribuído: {item.twilio_whatsapp_number || "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Seu número: {item.customer_phone_number || "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Subaccount: ...{item.twilio_subaccount_sid?.slice(-6) || "------"}
                         </p>
                       </div>
                       {statusBadge(item.status)}

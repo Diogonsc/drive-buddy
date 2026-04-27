@@ -17,6 +17,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
+import { toast } from "sonner";
 
 interface OnboardingWizardProps {
   open: boolean;
@@ -127,14 +128,18 @@ export function OnboardingWizard({
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {currentStep === 0 && (
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Conecte sua conta do WhatsApp Business em 1 clique.
-                  O sistema configura tudo automaticamente — webhook, número e permissões.
-                </p>
-
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <h3 className="font-medium text-sm mb-1">Como funciona</h3>
+                  <p className="text-sm text-muted-foreground">
+                    A Swiftwapdrive vai configurar um número WhatsApp dedicado para você.
+                    Quando seus clientes enviarem mídias para esse número, elas serão
+                    salvas automaticamente no seu Google Drive — sem nenhuma ação manual.
+                  </p>
+                </div>
                 <WhatsAppConnectButton
-                  onSuccess={handleWhatsAppSuccess}
                   currentStatus={isWhatsAppDone ? 'connected' : 'disconnected'}
+                  onSuccess={handleWhatsAppSuccess}
+                  onError={(err) => toast.error(err)}
                 />
               </div>
             )}
