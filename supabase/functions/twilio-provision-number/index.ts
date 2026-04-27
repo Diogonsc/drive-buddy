@@ -35,7 +35,7 @@ function twilioRequest(
   })
 }
 
-// PASSO 1: Criar subaccount Twilio para o cliente
+// RESERVADO: usado no modelo subaccount (upgrade)
 async function createSubaccount(friendlyName: string): Promise<{
   sid: string
   authToken: string
@@ -55,7 +55,7 @@ async function createSubaccount(friendlyName: string): Promise<{
   return { sid: data.sid, authToken: data.auth_token }
 }
 
-// PASSO 2: Buscar número disponível no país do cliente
+// RESERVADO: usado no modelo subaccount (upgrade)
 async function searchAvailableNumber(countryCode: string): Promise<string> {
   const res = await twilioRequest(
     `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_MAIN_ACCOUNT_SID}/AvailablePhoneNumbers/${countryCode}/Mobile.json?SmsEnabled=true&MmsEnabled=true&Limit=1`,
@@ -77,7 +77,7 @@ async function searchAvailableNumber(countryCode: string): Promise<string> {
   return data.available_phone_numbers[0].phone_number
 }
 
-// PASSO 3: Comprar número na subaccount do cliente
+// RESERVADO: usado no modelo subaccount (upgrade)
 async function purchaseNumber(
   phoneNumber: string,
   subaccountSid: string,
@@ -104,7 +104,7 @@ async function purchaseNumber(
   return { sid: data.sid, phoneNumber: data.phone_number }
 }
 
-// PASSO 4: Registrar número como WhatsApp sender na subaccount
+// RESERVADO: usado no modelo subaccount (upgrade)
 async function registerWhatsAppSender(
   phoneNumber: string,
   subaccountSid: string,
@@ -125,7 +125,7 @@ async function registerWhatsAppSender(
   }
 }
 
-// PASSO 5: Configurar webhook na subaccount
+// RESERVADO: usado no modelo subaccount (upgrade)
 async function configureWebhook(
   numberSid: string,
   subaccountSid: string,
@@ -222,89 +222,52 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Cria registro pending imediatamente para feedback visual
-    const { data: connection } = await supabase
+    const envTwilioWhatsappNumber = Deno.env.get('TWILIO_WHATSAPP_NUMBER')
+    if (!envTwilioWhatsappNumber) {
+      throw new Error('TWILIO_WHATSAPP_NUMBER não configurado')
+    }
+
+    const twilioWhatsappNumber = envTwilioWhatsappNumber.startsWith('whatsapp:')
+      ? envTwilioWhatsappNumber
+      : `whatsapp:${envTwilioWhatsappNumber}`
+    const twilioNumber = twilioWhatsappNumber.replace(/^whatsapp:/, '')
+
+    const { data: connection, error: upsertError } = await supabase
       .from('whatsapp_connections')
-      .insert({
+      .upsert({
         user_id: user.id,
         label: label || `WhatsApp ${normalizedPhone.slice(-4)}`,
         phone_number_id: normalizedPhone,
         customer_phone_number: normalizedPhone,
         provider: 'twilio',
-        status: 'pending',
-      })
+        twilio_whatsapp_number: twilioWhatsappNumber,
+        twilio_subaccount_sid: null,
+        twilio_subaccount_auth_token: null,
+        twilio_number_sid: null,
+        status: 'connected',
+        connected_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,phone_number_id' })
       .select()
       .single()
 
-    if (!connection) {
-      throw new Error('Falha ao criar registro de conexão')
+    if (upsertError || !connection) {
+      console.error('[PROVISION] Upsert error:', JSON.stringify(upsertError))
+      throw new Error(`Falha ao criar/atualizar conexão: ${upsertError?.message || 'erro desconhecido'}`)
     }
 
-    const connectionId = connection.id as string
+    console.log(`[PROVISION] Conectado em modo shared para user ${user.id}`)
 
-    try {
-      // PASSO 1: Criar subaccount
-      console.log(`[PROVISION] Criando subaccount para user ${user.id}`)
-      const friendlyName = `Swiftwapdrive - ${user.email} - ${normalizedPhone}`
-      const { sid: subSid, authToken: subToken } = await createSubaccount(friendlyName)
-
-      // PASSO 2: Buscar número disponível
-      console.log(`[PROVISION] Buscando número em ${countryCode}`)
-      const availableNumber = await searchAvailableNumber(countryCode)
-
-      // PASSO 3: Comprar número
-      console.log(`[PROVISION] Comprando número ${availableNumber}`)
-      const { sid: numberSid, phoneNumber: purchasedNumber } = await purchaseNumber(
-        availableNumber,
-        subSid,
-        subToken,
-      )
-
-      // PASSO 4: Registrar como WhatsApp sender
-      console.log(`[PROVISION] Registrando WhatsApp sender`)
-      await registerWhatsAppSender(purchasedNumber, subSid, subToken)
-
-      // PASSO 5: Configurar webhook
-      console.log(`[PROVISION] Configurando webhook`)
-      await configureWebhook(numberSid, subSid, subToken)
-
-      const twilioWhatsappNumber = `whatsapp:${purchasedNumber}`
-
-      // Salvar tudo no banco
-      await supabase
-        .from('whatsapp_connections')
-        .update({
-          twilio_subaccount_sid: subSid,
-          twilio_subaccount_auth_token: subToken,
-          twilio_whatsapp_number: twilioWhatsappNumber,
-          twilio_number_sid: numberSid,
-          status: 'connected',
-          connected_at: new Date().toISOString(),
-        })
-        .eq('id', connectionId)
-
-      console.log(`[PROVISION] Concluído com sucesso para user ${user.id}`)
-
-      return new Response(JSON.stringify({
-        success: true,
-        twilio_number: purchasedNumber,
-        twilio_whatsapp_number: twilioWhatsappNumber,
-        subaccount_sid: subSid,
-        status: 'connected',
-        message: `Número ${purchasedNumber} provisionado com sucesso!`,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    } catch (provisionError) {
-      // Rollback: marcar conexão como erro
-      await supabase
-        .from('whatsapp_connections')
-        .update({ status: 'error' })
-        .eq('id', connectionId)
-
-      throw provisionError
-    }
+    return new Response(JSON.stringify({
+      success: true,
+      twilio_number: twilioNumber,
+      twilio_whatsapp_number: twilioWhatsappNumber,
+      status: 'connected',
+      mode: 'shared',
+      message: 'WhatsApp conectado com sucesso!',
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   } catch (err) {
     console.error('[PROVISION] Erro:', err)
     return new Response(JSON.stringify({
