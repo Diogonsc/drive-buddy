@@ -138,30 +138,51 @@ async function checkUserHealth(userId: string) {
 }
 
 async function checkWhatsApp(conn: any, userId: string, logs: any[]) {
-  if (conn.whatsapp_status !== "connected") {
-    return { status: "unknown", message: "WhatsApp não conectado" };
+  // Busca conexão ativa na tabela whatsapp_connections (modelo atual)
+  const { data: waConn } = await supabase
+    .from("whatsapp_connections")
+    .select("id, status, twilio_whatsapp_number, twilio_subaccount_sid, twilio_account_sid, twilio_auth_token")
+    .eq("user_id", userId)
+    .in("status", ["connected", "pending"])
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  // Sem conexão ativa na nova tabela — verifica legada como fallback
+  if (!waConn) {
+    if (conn.whatsapp_status !== "connected") {
+      return { status: "unknown", message: "WhatsApp não conectado" }
+    }
+    // Legada conectada mas sem credenciais Twilio
+    return { status: "warning", message: "Conexão legada detectada. Reconecte o WhatsApp." }
   }
 
-  // Remover verificação de expiração de token Meta (não se aplica ao Twilio)
-  // Tokens Twilio não expiram.
-  const hasTwilioCredentials = conn?.twilio_account_sid && conn?.twilio_auth_token;
-  if (!hasTwilioCredentials) {
+  // Conexão encontrada na tabela nova
+  if (waConn.status === "pending") {
+    return { status: "warning", message: "WhatsApp aguardando confirmação" }
+  }
+
+  // No modelo compartilhado, credenciais ficam nos Secrets globais — sempre saudável
+  const hasSubaccountCredentials = waConn.twilio_subaccount_sid && waConn.twilio_auth_token
+  const hasGlobalCredentials = !!Deno.env.get("TWILIO_ACCOUNT_SID") && !!Deno.env.get("TWILIO_AUTH_TOKEN")
+
+  if (!hasSubaccountCredentials && !hasGlobalCredentials) {
     logs.push({
       user_id: userId,
       check_type: "whatsapp_critical",
       status: "critical",
-      message: "Credenciais Twilio não configuradas. Reconecte o WhatsApp.",
-    });
-    return { status: "critical", message: "Credenciais Twilio não configuradas. Reconecte o WhatsApp." };
+      message: "Credenciais Twilio não configuradas.",
+    })
+    return { status: "critical", message: "Credenciais Twilio não configuradas. Reconecte o WhatsApp." }
   }
 
   logs.push({
     user_id: userId,
     check_type: "whatsapp_token",
     status: "healthy",
-    message: "Credenciais Twilio configuradas",
-  });
-  return { status: "healthy", message: "WhatsApp funcionando normalmente" };
+    message: "WhatsApp conectado via Twilio",
+  })
+  return { status: "healthy", message: "WhatsApp funcionando normalmente" }
 }
 
 async function checkGoogle(conn: any, userId: string, logs: any[]) {
