@@ -35,7 +35,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Link to="/" className="flex min-w-0 items-center gap-2">
               <div className="flex items-center justify-center rounded-lg">
-                  <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
+                  <img src={logo} alt="Swiftwapdrive" className="h-1 w-1 rounded-lg text-primary-foreground" />
               </div>
               <div className="min-w-0">
                 <h1 className="truncate text-base font-bold tracking-tight text-foreground sm:text-lg">
