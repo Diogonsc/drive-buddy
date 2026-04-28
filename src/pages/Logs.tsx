@@ -21,6 +21,14 @@ import {
 } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -41,6 +49,7 @@ import {
   ChevronRight,
   Eye,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { LogEntry, MediaType } from "@/components/ui/ActivityLog";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,6 +125,25 @@ const mapMediaType = (fileType: string): MediaType => {
 interface MobileLogCardProps {
   log: LogEntry;
   formatTimestamp: (date: Date) => string;
+  onViewDetail: (logId: string) => void;
+}
+
+interface LogDetail {
+  id: string
+  file_name: string
+  file_type: string
+  mime_type: string | null
+  file_size_bytes: number | null
+  sender_phone: string | null
+  sender_name: string | null
+  status: string
+  error_message: string | null
+  received_at: string
+  processed_at: string | null
+  google_drive_file_id: string | null
+  google_drive_url: string | null
+  google_drive_folder_id: string | null
+  whatsapp_message_id: string | null
 }
 
 function truncateFileNameForMobile(fileName: string, maxLength = 22): string {
@@ -124,7 +152,7 @@ function truncateFileNameForMobile(fileName: string, maxLength = 22): string {
 }
 
 
-const MobileLogCard = ({ log, formatTimestamp }: MobileLogCardProps) => {
+const MobileLogCard = ({ log, formatTimestamp, onViewDetail }: MobileLogCardProps) => {
   return (
     <div className="rounded-lg border p-3 space-y-2">
       <div className="flex items-start justify-between gap-3">
@@ -137,7 +165,7 @@ const MobileLogCard = ({ log, formatTimestamp }: MobileLogCardProps) => {
             <p className="text-xs text-muted-foreground truncate">{log.sender}</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => onViewDetail(log.id)}>
           <Eye className="h-4 w-4" />
         </Button>
       </div>
@@ -166,6 +194,9 @@ export default function Logs() {
   const [isLoading, setIsLoading] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [selectedLog, setSelectedLog] = useState<LogDetail | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const itemsPerPage = 10;
 
   // Função para mapear status do banco para o tipo LogStatus
@@ -302,6 +333,38 @@ export default function Logs() {
     setCurrentPage(1);
     // loadLogs será chamado automaticamente pelo useEffect
   };
+
+  const handleViewDetail = async (logId: string) => {
+    setIsLoadingDetail(true)
+    setIsDetailOpen(true)
+    try {
+      const { data, error } = await supabase
+        .from('media_files')
+        .select(`
+          id, file_name, file_type, mime_type, file_size_bytes,
+          sender_phone, sender_name, status, error_message,
+          received_at, processed_at, google_drive_file_id,
+          google_drive_url, google_drive_folder_id, whatsapp_message_id
+        `)
+        .eq('id', logId)
+        .single()
+
+      if (error) throw error
+      setSelectedLog(data as LogDetail)
+    } catch (err) {
+      toast.error('Erro ao carregar detalhes')
+      setIsDetailOpen(false)
+    } finally {
+      setIsLoadingDetail(false)
+    }
+  }
+
+  const formatBytes = (bytes: number | null): string => {
+    if (!bytes) return '—'
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
 
   const formatTimestamp = (date: Date) => {
     return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
@@ -480,7 +543,7 @@ export default function Logs() {
                   </div>
                 ) : (
                   paginatedLogs.map((log) => (
-                    <MobileLogCard key={log.id} log={log} formatTimestamp={formatTimestamp} />
+                    <MobileLogCard key={log.id} log={log} formatTimestamp={formatTimestamp} onViewDetail={handleViewDetail} />
                   ))
                 )}
               </div>
@@ -548,7 +611,7 @@ export default function Logs() {
                             <StatusBadge status={log.status} />
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" onClick={() => handleViewDetail(log.id)}>
                               <Eye className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -589,6 +652,188 @@ export default function Logs() {
               )}
             </CardContent>
           </Card>
+          {/* Sheet de Detalhes do Arquivo */}
+          <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+            <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  {selectedLog && <MediaIcon type={selectedLog.file_type} />}
+                  Detalhes do Arquivo
+                </SheetTitle>
+                <SheetDescription>
+                  Informações completas sobre o processamento
+                </SheetDescription>
+              </SheetHeader>
+
+              {isLoadingDetail ? (
+                <div className="flex h-40 items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : selectedLog ? (
+                <div className="mt-6 space-y-6">
+
+                  {/* Status */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <StatusBadge status={
+                      selectedLog.status === 'completed' ? 'success' :
+                      selectedLog.status === 'failed' ? 'error' : 'pending'
+                    } />
+                  </div>
+
+                  <Separator />
+
+                  {/* Arquivo */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Arquivo
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Nome</span>
+                        <span className="text-sm font-medium text-right break-all">
+                          {selectedLog.file_name}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Tipo</span>
+                        <span className="text-sm font-medium capitalize">{selectedLog.file_type}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">MIME</span>
+                        <span className="text-sm font-mono text-right">{selectedLog.mime_type || '—'}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Tamanho</span>
+                        <span className="text-sm font-medium">{formatBytes(selectedLog.file_size_bytes)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Remetente */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Remetente
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Nome</span>
+                        <span className="text-sm font-medium">{selectedLog.sender_name || '—'}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Telefone</span>
+                        <span className="text-sm font-medium">{selectedLog.sender_phone || '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Datas */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Datas
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Recebido em</span>
+                        <span className="text-sm font-medium">
+                          {format(new Date(selectedLog.received_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Processado em</span>
+                        <span className="text-sm font-medium">
+                          {selectedLog.processed_at
+                            ? format(new Date(selectedLog.processed_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })
+                            : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Google Drive */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Google Drive
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">File ID</span>
+                        <span className="text-sm font-mono text-right break-all">
+                          {selectedLog.google_drive_file_id || '—'}
+                        </span>
+                      </div>
+                      {selectedLog.google_drive_url && (
+                        <div className="pt-1">
+                          <a
+                            href={selectedLog.google_drive_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Abrir arquivo no Drive
+                          </a>
+                        </div>
+                      )}
+                      {selectedLog.google_drive_folder_id && (
+                        <div>
+                          <a
+                            href={`https://drive.google.com/drive/folders/${selectedLog.google_drive_folder_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Abrir pasta no Drive
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Erro (se houver) */}
+                  {selectedLog.error_message && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-destructive">
+                          Erro
+                        </p>
+                        <p className="text-sm text-destructive bg-destructive/5 rounded-lg p-3">
+                          {selectedLog.error_message}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* WhatsApp Message ID */}
+                  {selectedLog.whatsapp_message_id && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          WhatsApp
+                        </p>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-sm text-muted-foreground shrink-0">Message ID</span>
+                          <span className="text-xs font-mono text-right break-all text-muted-foreground">
+                            {selectedLog.whatsapp_message_id}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                </div>
+              ) : null}
+            </SheetContent>
+          </Sheet>
       </div>
     </AppLayout>
   );
