@@ -13,12 +13,11 @@ import {
   XCircle,
   HelpCircle,
   RefreshCw,
-  MessageSquare,
-  HardDrive,
   Cpu,
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 type HealthStatus = "healthy" | "warning" | "critical" | "unknown";
 
@@ -48,7 +47,7 @@ function HealthIndicator({ status, label, message, lastCheck, icon: ServiceIcon 
   label: string;
   message: string | null;
   lastCheck: string | null;
-  icon: typeof MessageSquare;
+  icon: typeof FaWhatsapp;
 }) {
   const config = statusConfig[status];
   const StatusIcon = config.icon;
@@ -245,7 +244,7 @@ export function HealthMonitor() {
           label="WhatsApp"
           message={health?.whatsapp_message || null}
           lastCheck={health?.whatsapp_last_check || null}
-          icon={MessageSquare}
+          icon={FaWhatsapp}
         />
 
         <HealthIndicator
@@ -253,7 +252,7 @@ export function HealthMonitor() {
           label="Google Drive"
           message={health?.google_message || null}
           lastCheck={health?.google_last_check || null}
-          icon={HardDrive}
+          icon={FaGoogleDrive}
         />
 
         <HealthIndicator

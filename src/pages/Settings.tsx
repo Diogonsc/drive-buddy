@@ -20,10 +20,8 @@ import { useConnections } from "@/hooks/useConnections";
 import { supabase } from "@/integrations/supabase/client";
 import {
     FolderTree,
-    HardDrive,
     Link as LinkIcon,
     Loader2,
-    MessageSquare,
     RefreshCw,
     Save,
     Shield,
@@ -32,6 +30,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 const VALID_TABS = ["whatsapp", "google", "routing", "general"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
@@ -418,11 +417,11 @@ export default function Settings() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full max-w-2xl grid-cols-4 overflow-x-auto">
           <TabsTrigger value="whatsapp" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
+            <FaWhatsapp className="h-4 w-4" />
             <span className="hidden sm:inline">WhatsApp</span>
           </TabsTrigger>
           <TabsTrigger value="google" className="gap-2">
-            <HardDrive className="h-4 w-4" />
+            <FaGoogleDrive className="h-4 w-4" />
             <span className="hidden sm:inline">Google Drive</span>
           </TabsTrigger>
           <TabsTrigger value="routing" className="gap-2">

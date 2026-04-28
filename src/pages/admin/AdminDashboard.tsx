@@ -21,10 +21,10 @@ import {
   fetchRecentLogs,
   type SyncLogRow,
 } from "@/services/admin/adminQueries";
-import { Users, Shield, Activity, AlertCircle, Loader2, ScrollText, Link as LinkIcon, HardDrive, MessageSquare } from "lucide-react";
+import { Users, Shield, Activity, AlertCircle, Loader2, ScrollText, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 /**
  * Dashboard Admin — visão geral do sistema (somente leitura).
  * Usa AppLayout global. Dados via user_roles e sync_logs (RLS permitido para admin).
@@ -155,13 +155,13 @@ export default function AdminDashboard() {
                   title="WhatsApp conectados"
                   value={integrationOverview.whatsapp.connected}
                   subtitle={`de ${integrationOverview.whatsapp.total} números`}
-                  icon={MessageSquare}
+                  icon={FaWhatsapp}
                 />
                 <MetricCard
                   title="Google conectados"
                   value={integrationOverview.google.connected}
                   subtitle={`de ${integrationOverview.google.total} contas`}
-                  icon={HardDrive}
+                  icon={FaGoogleDrive}
                 />
                 <MetricCard
                   title="Regras de roteamento"

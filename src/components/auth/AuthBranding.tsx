@@ -1,5 +1,5 @@
-import { Cloud, MessageCircle, HardDrive, Zap } from "lucide-react"
-import logo from "@/assets/logo.png"
+import { Cloud, MessageCircle, HardDrive, Zap } from "lucide-react";
+import logo from "@/assets/logo.png";
 const features = [
   {
     icon: MessageCircle,
@@ -13,16 +13,20 @@ const features = [
     icon: Zap,
     text: "Sincronização em tempo real, sem esforço.",
   },
-]
+];
 
 export function AuthBranding() {
   return (
     <div className="flex flex-col justify-center p-8 lg:p-12 xl:p-16">
       <div className="mx-auto w-full max-w-md lg:max-w-none">
         <div className="flex items-center gap-3 mb-8">
-        <div className="flex items-center justify-center rounded-lg">
-                  <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
-              </div>
+          <div className="flex items-center justify-center rounded-lg">
+            <img
+              src={logo}
+              alt="Swiftwapdrive"
+              className="h-10 w-10 rounded-lg text-primary-foreground"
+            />
+          </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-primary-foreground lg:text-3xl">
               Swiftwapdrive
@@ -33,9 +37,9 @@ export function AuthBranding() {
           </div>
         </div>
         <p className="text-primary-foreground/90 mb-8 text-base lg:text-lg leading-relaxed">
-          Conecte sua conta do WhatsApp Business e seu Google Drive. As fotos, vídeos,
-          áudios e documentos que você receber serão salvos e organizados automaticamente
-          na nuvem.
+          Conecte sua conta do WhatsApp Business e seu Google Drive. As fotos,
+          vídeos, áudios e documentos que você receber serão salvos e
+          organizados automaticamente na nuvem.
         </p>
         <ul className="space-y-4">
           {features.map((item) => (
@@ -51,5 +55,5 @@ export function AuthBranding() {
         </ul>
       </div>
     </div>
-  )
+  );
 }

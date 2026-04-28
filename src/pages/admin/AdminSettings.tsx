@@ -22,8 +22,6 @@ import {
   Shield,
   Settings,
   Database,
-  MessageSquare,
-  HardDrive,
   Link as LinkIcon,
   Lock,
   ExternalLink,
@@ -31,7 +29,7 @@ import {
   Loader2,
   ScrollText,
 } from "lucide-react";
-
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 /**
  * Configurações Admin — informações do sistema, status de integrações,
  * roles/permissões e segurança. Sem escrita no banco.
@@ -117,13 +115,13 @@ export default function AdminSettings() {
               title="WhatsApp (multi)"
               status={integrationOverview?.whatsapp.connected ? "connected" : "disconnected"}
               statusLabel={`${integrationOverview?.whatsapp.connected ?? 0} conectados de ${integrationOverview?.whatsapp.total ?? 0}`}
-              icon={MessageSquare}
+              icon={FaWhatsapp}
             />
             <StatusCard
               title="Google Drive (multi)"
               status={integrationOverview?.google.connected ? "active" : "disconnected"}
               statusLabel={`${integrationOverview?.google.connected ?? 0} conectados de ${integrationOverview?.google.total ?? 0}`}
-              icon={HardDrive}
+              icon={FaGoogleDrive}
             />
             <StatusCard
               title="Regras de roteamento"

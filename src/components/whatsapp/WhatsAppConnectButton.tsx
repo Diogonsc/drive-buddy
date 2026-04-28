@@ -6,12 +6,13 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import {
-  CheckCircle2, XCircle, Loader2, MessageSquare,
-  MessageCircle, Link2, Shield,
+  CheckCircle2, XCircle, Loader2,
+  Link2, Shield,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
 import { cn } from '@/lib/utils'
+import { FaWhatsapp } from 'react-icons/fa6'
 
 type ProvisionStep = 'idle' | 'creating_account' | 'searching_number' | 'purchasing' | 'configuring' | 'success' | 'error'
 
@@ -155,7 +156,7 @@ export function WhatsAppConnectButton({
         <p className="font-medium">Como funciona:</p>
         <div className="space-y-2 text-muted-foreground">
           <div className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-primary shrink-0" />
+            <FaWhatsapp className="h-4 w-4 text-primary shrink-0" />
             <span>Informe seu número WhatsApp Business abaixo</span>
           </div>
           <div className="flex items-center gap-2">
@@ -244,7 +245,7 @@ export function WhatsAppConnectButton({
         {isProcessing ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <MessageSquare className="h-4 w-4" />
+          <FaWhatsapp className="h-4 w-4" />
         )}
         {STEP_LABELS[step]}
       </Button>

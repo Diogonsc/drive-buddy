@@ -12,13 +12,12 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  MessageSquare,
-  HardDrive,
   Settings,
   RefreshCw,
   Loader2,
   Link as LinkIcon,
 } from "lucide-react";
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 interface SubscriptionInfo {
   whatsapp_numbers_limit: number;
@@ -205,7 +204,7 @@ export default function Connections() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <MessageSquare className="h-5 w-5 text-primary" />
+                  <FaWhatsapp className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <CardTitle className="text-lg">Números WhatsApp</CardTitle>
@@ -239,7 +238,7 @@ export default function Connections() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <HardDrive className="h-5 w-5 text-primary" />
+                  <FaGoogleDrive className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <CardTitle className="text-lg">Contas Google Drive</CardTitle>

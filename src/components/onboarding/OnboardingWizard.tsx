@@ -10,14 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
-  MessageSquare,
-  HardDrive,
   Send,
   ArrowRight,
   CheckCircle2,
 } from "lucide-react";
 import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
 import { toast } from "sonner";
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 interface OnboardingWizardProps {
   open: boolean;
@@ -31,12 +30,12 @@ const STEPS = [
   {
     id: "whatsapp",
     title: "Conectar WhatsApp",
-    icon: MessageSquare,
+    icon: FaWhatsapp,
   },
   {
     id: "google",
     title: "Conectar Google Drive",
-    icon: HardDrive,
+    icon: FaGoogleDrive,
   },
   {
     id: "test",
@@ -158,7 +157,7 @@ export function OnboardingWizard({
                   </div>
                 ) : (
                   <Button className="w-full" onClick={onConnectGoogleDrive}>
-                    <HardDrive className="h-4 w-4 mr-2" />
+                    <FaGoogleDrive className="h-4 w-4 mr-2" />
                     Conectar Google Drive
                   </Button>
                 )}

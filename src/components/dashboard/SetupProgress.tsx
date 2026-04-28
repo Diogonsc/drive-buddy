@@ -1,9 +1,10 @@
-import { CheckCircle2, Circle, MessageSquare, HardDrive, Send, UserCheck } from "lucide-react";
+import { CheckCircle2, Circle, Send, UserCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 interface SetupProgressProps {
   accountCreated: boolean;
@@ -35,7 +36,7 @@ export function SetupProgress({
       id: "whatsapp",
       label: "WhatsApp conectado",
       description: whatsappConfigured ? "Integração ativa" : "Conecte em 1 clique",
-      icon: MessageSquare,
+      icon: FaWhatsapp,
       completed: whatsappConfigured,
       cta: !whatsappConfigured ? 'whatsapp' : null,
     },
@@ -43,7 +44,7 @@ export function SetupProgress({
       id: "google",
       label: "Google Drive conectado",
       description: googleDriveConnected ? "OAuth autorizado" : "Conecte sua conta",
-      icon: HardDrive,
+      icon: FaGoogleDrive,
       completed: googleDriveConnected,
       cta: !googleDriveConnected && onConnectGoogleDrive ? 'google' : null,
     },
@@ -131,7 +132,7 @@ export function SetupProgress({
         )}
         {nextStep?.cta === 'google' && onConnectGoogleDrive && (
           <Button size="sm" onClick={onConnectGoogleDrive} className="gap-2">
-            <HardDrive className="h-4 w-4" />
+            <FaGoogleDrive className="h-4 w-4" />
             Conectar Google Drive
           </Button>
         )}

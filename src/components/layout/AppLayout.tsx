@@ -1,29 +1,37 @@
-import { ReactNode } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { InstallBanner } from "@/components/pwa/InstallBanner"
-import { MobileBottomNav } from "@/components/layout/MobileBottomNav"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
-import { HiOutlineBell, HiOutlineCog6Tooth, HiOutlineShieldCheck } from "react-icons/hi2"
-import { FaCloud } from "react-icons/fa"
-import { Button } from "@/components/ui/button"
-import { Link } from "react-router-dom"
-import { useIsAdmin } from "@/hooks/useIsAdmin"
+import { ReactNode } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import {
+  HiOutlineBell,
+  HiOutlineCog6Tooth,
+  HiOutlineShieldCheck,
+} from "react-icons/hi2";
+import { FaCloud } from "react-icons/fa";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 
-import logo from "@/assets/logo.png"
+import logo from "@/assets/logo.png";
 
 interface AppLayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { isAdmin } = useIsAdmin()
+  const { isAdmin } = useIsAdmin();
 
   return (
     <SidebarProvider>
@@ -35,7 +43,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Link to="/" className="flex min-w-0 items-center gap-2">
               <div className="flex items-center justify-center rounded-lg">
-                  <img src={logo} alt="Swiftwapdrive" className="h-1 w-1 rounded-lg text-primary-foreground" />
+                <img
+                  src={logo}
+                  alt="Swiftwapdrive"
+                  className="h-10 w-10 rounded-lg text-primary-foreground"
+                />
               </div>
               <div className="min-w-0">
                 <h1 className="truncate text-base font-bold tracking-tight text-foreground sm:text-lg">
@@ -53,7 +65,11 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link to="/admin">
-                      <Button variant="ghost" size="icon" aria-label="Painel Admin">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Painel Admin"
+                      >
                         <HiOutlineShieldCheck className="h-5 w-5" />
                       </Button>
                     </Link>
@@ -80,5 +96,5 @@ export function AppLayout({ children }: AppLayoutProps) {
         <MobileBottomNav />
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

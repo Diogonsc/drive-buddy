@@ -1,4 +1,5 @@
-import { MessageSquare, HardDrive } from "lucide-react";
+
+import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 import { ConnectionCard } from "@/components/ui/ConnectionCard";
 
 interface ConnectionsOverviewProps {
@@ -23,7 +24,7 @@ export function ConnectionsOverview({
       <ConnectionCard
         title="WhatsApp Business"
         description="Receba arquivos automaticamente via API oficial do WhatsApp"
-        icon={MessageSquare}
+        icon={FaWhatsapp}
         iconColor="text-emerald-500"
         status={whatsappStatus}
         actionLabel={
@@ -47,7 +48,7 @@ export function ConnectionsOverview({
       <ConnectionCard
         title="Google Drive"
         description="Armazene seus arquivos de forma organizada na nuvem"
-        icon={HardDrive}
+        icon={FaGoogleDrive}
         iconColor="text-blue-500"
         status={googleDriveStatus}
         actionLabel={googleDriveStatus === "connected" ? "Gerenciar" : "Conectar Google Drive"}

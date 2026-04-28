@@ -1,5 +1,6 @@
-import { MessageSquare, ArrowRight, Server, ArrowRight as Arrow2, HardDrive, CheckCircle2 } from "lucide-react";
+import { Server, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FaWhatsapp, FaGoogleDrive, FaArrowRight } from "react-icons/fa6";
 
 interface FlowVisualizationProps {
   whatsappConnected: boolean;
@@ -29,7 +30,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
                   : "bg-muted"
               )}
             >
-              <MessageSquare
+              <FaWhatsapp
                 className={cn(
                   "h-7 w-7",
                   whatsappConnected ? "text-success" : "text-muted-foreground"
@@ -45,7 +46,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
               "h-0.5 flex-1 max-w-16 transition-colors",
               whatsappConnected ? "bg-primary" : "bg-border"
             )} />
-            <ArrowRight className={cn(
+            <FaArrowRight className={cn(
               "h-5 w-5 mx-1 transition-colors",
               whatsappConnected ? "text-primary" : "text-muted-foreground",
               isProcessing && "animate-pulse"
@@ -83,7 +84,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
               "h-0.5 flex-1 max-w-16 transition-colors",
               googleDriveConnected ? "bg-primary" : "bg-border"
             )} />
-            <ArrowRight className={cn(
+            <FaArrowRight className={cn(
               "h-5 w-5 mx-1 transition-colors",
               googleDriveConnected ? "text-primary" : "text-muted-foreground",
               isProcessing && "animate-pulse"
@@ -104,7 +105,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
                   : "bg-muted"
               )}
             >
-              <HardDrive
+              <FaGoogleDrive
                 className={cn(
                   "h-7 w-7",
                   googleDriveConnected ? "text-primary" : "text-muted-foreground"
