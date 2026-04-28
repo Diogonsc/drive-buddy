@@ -512,6 +512,7 @@ Deno.serve(async (req) => {
         status: "completed",
         google_drive_file_id: driveFileId,
         google_drive_url: webViewLink,
+        google_drive_folder_id: targetFolderId,
         google_drive_account_id: googleAccount.source === "multi" ? (accountRow.id as string) : null,
         file_size_bytes: fileBuffer.byteLength,
         processed_at: new Date().toISOString(),
@@ -519,6 +520,15 @@ Deno.serve(async (req) => {
         error_message: null,
       })
       .eq("id", mediaFileId);
+
+    // Atualiza root_folder_id na google_drive_accounts se ainda não estiver salvo
+    if (googleAccount.source === "multi" && accountRow.id && !accountRow.root_folder_id) {
+      await supabase
+        .from("google_drive_accounts")
+        .update({ root_folder_id: targetFolderId })
+        .eq("id", accountRow.id as string)
+        .is("root_folder_id", null)
+    }
 
     await registerPlanUsage(userId, mediaFileId, planState.usedBefore, planState.limit);
 
