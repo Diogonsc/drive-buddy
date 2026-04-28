@@ -18,19 +18,18 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "android-chrome-192x192.png", "android-chrome-512x512.png"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "logo.png", "fundo-mobile.png"],
       manifest: {
         name: "Swiftwapdrive - WhatsApp to Google Drive",
         short_name: "Swiftwapdrive",
         description: "Sincronize mídias do WhatsApp direto para o Google Drive",
-        theme_color: "#0d9488",
-        background_color: "#f8fafb",
+        theme_color: "#24b59f",
+        background_color: "#24b59f",
         display: "standalone",
         start_url: "/",
         icons: [
-          { src: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
-          { src: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: "/fundo-mobile.png", sizes: "1024x1024", type: "image/png", purpose: "any maskable" },
         ],
       },
       workbox: {
