@@ -20,6 +20,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { useIsAdmin } from "@/hooks/useIsAdmin"
+import logo from "@/assets/logo.png"
 
 // Dados do usuário e equipe
 const data = {
@@ -31,7 +32,7 @@ const data = {
   teams: [
     {
       name: "Swiftwapdrive",
-      logo: Cloud,
+      logo: logo,
       plan: " WhatsApp → Google Drive",
     },
   ],

@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
-import { Cloud, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
+import logo from "@/assets/logo.png"
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -56,9 +57,9 @@ export default function Login() {
         <div className="w-full max-w-md">
           {/* Logo e título no mobile */}
           <div className="lg:hidden flex flex-col items-center text-center mb-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg mb-3">
-              <Cloud className="h-6 w-6 text-primary-foreground" />
-            </div>
+          <div className="flex items-center justify-center rounded-lg">
+                  <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
+              </div>
             <h1 className="text-xl font-bold">Swiftwapdrive</h1>
             <p className="text-sm text-muted-foreground">WhatsApp → Google Drive</p>
           </div>

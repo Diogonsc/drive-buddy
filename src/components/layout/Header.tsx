@@ -11,7 +11,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileSidebar } from "./MobileSidebar";
 import { Link } from "react-router-dom";
-import { FaCloud } from "react-icons/fa";
+import logo from "@/assets/logo.png"
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -37,9 +37,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-glow">
-              <FaCloud className="h-5 w-5 text-primary-foreground" />
-            </div>
+          <div className="flex items-center justify-center rounded-lg">
+                  <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
+              </div>
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold tracking-tight text-foreground">
                 Swiftwapdrive

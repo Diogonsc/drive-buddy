@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
 import { Cloud, Loader2, Mail, ArrowLeft } from 'lucide-react'
+import logo from "@/assets/logo.png"
 
 function getResetRedirectUrl() {
   const configuredUrl = import.meta.env.VITE_AUTH_REDIRECT_URL?.trim()
@@ -65,9 +66,9 @@ export default function ForgotPassword() {
       <div className="w-full lg:w-1/2 xl:w-[45%] flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex flex-col items-center text-center mb-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg mb-3">
-              <Cloud className="h-6 w-6 text-primary-foreground" />
-            </div>
+          <div className="flex items-center justify-center rounded-lg">
+                  <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
+              </div>
             <h1 className="text-xl font-bold">Swiftwapdrive</h1>
             <p className="text-sm text-muted-foreground">WhatsApp → Google Drive</p>
           </div>

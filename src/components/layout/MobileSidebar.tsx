@@ -10,6 +10,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import { SheetClose } from "@/components/ui/sheet";
 import { FaCloud } from "react-icons/fa";
+import logo from "@/assets/logo.png"
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -33,8 +34,8 @@ export function MobileSidebar() {
     <div className="flex h-full flex-col bg-sidebar">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-glow">
-          <FaCloud className="h-5 w-5 text-primary-foreground" />
+        <div className="flex items-center justify-center rounded-lg">
+          <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
         </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight text-foreground">

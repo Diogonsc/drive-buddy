@@ -16,6 +16,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+import logo from "@/assets/logo.png"
+
 interface AppLayoutProps {
   children: ReactNode
 }
@@ -32,8 +34,8 @@ export function AppLayout({ children }: AppLayoutProps) {
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Link to="/" className="flex min-w-0 items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <FaCloud className="h-4 w-4 text-primary-foreground" />
+              <div className="flex items-center justify-center rounded-lg">
+                  <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
               </div>
               <div className="min-w-0">
                 <h1 className="truncate text-base font-bold tracking-tight text-foreground sm:text-lg">
