@@ -22,8 +22,6 @@ interface SubscriptionSummary {
   plan: string;
   monthly_file_limit: number | null;
   files_used_current_month: number | null;
-  whatsapp_numbers_limit: number | null;
-  google_accounts_limit: number | null;
 }
 
 const navItems = [
@@ -46,7 +44,7 @@ export function MobileBottomNav() {
     const loadPlan = async () => {
       const { data } = await supabase
         .from("subscriptions")
-        .select("plan, monthly_file_limit, files_used_current_month, whatsapp_numbers_limit, google_accounts_limit")
+        .select("plan, monthly_file_limit, files_used_current_month")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -79,7 +77,7 @@ export function MobileBottomNav() {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 px-2 pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] backdrop-blur supports-[backdrop-filter]:bg-background/85 md:hidden">
       <div className="grid grid-cols-5 gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -126,24 +124,29 @@ export function MobileBottomNav() {
               <div className="rounded-lg border p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">Plano</p>
-                  <Badge>{plan?.plan || "starter"}</Badge>
+                  <Badge>Plano Essencial</Badge>
                 </div>
                 <Separator className="my-3" />
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Arquivos no ciclo</span>
+                    <span className="text-muted-foreground">Plano</span>
+                    <span className="font-medium">Essencial</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Mídias no ciclo</span>
                     <span>
-                      {plan?.files_used_current_month ?? 0} / {plan?.monthly_file_limit ?? "ilimitado"}
+                      {plan?.files_used_current_month ?? 0} / {plan?.monthly_file_limit ?? 200}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Limite WhatsApp</span>
-                    <span>{plan?.whatsapp_numbers_limit ?? 1}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Limite Google Drive</span>
-                    <span>{plan?.google_accounts_limit ?? 1}</span>
-                  </div>
+                  {(plan?.files_used_current_month ?? 0) > (plan?.monthly_file_limit ?? 200) && (
+                    <div className="flex justify-between text-amber-600">
+                      <span>Excedente</span>
+                      <span>
+                        R$ {(((plan?.files_used_current_month ?? 0) - (plan?.monthly_file_limit ?? 200)) * 0.1)
+                          .toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

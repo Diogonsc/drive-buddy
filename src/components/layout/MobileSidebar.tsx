@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { SheetClose } from "@/components/ui/sheet";
+import { FaCloud } from "react-icons/fa";
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -33,23 +34,11 @@ export function MobileSidebar() {
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-glow">
-          <svg
-            className="h-5 w-5 text-primary-foreground"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-            />
-          </svg>
+          <FaCloud className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight text-foreground">
-            MediaSync
+            Swiftwapdrive
           </h1>
           <p className="text-xs text-muted-foreground -mt-0.5">
             WhatsApp → Google Drive

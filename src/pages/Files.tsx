@@ -171,24 +171,26 @@ export default function Files() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
-          {folderStats.map((folder) => (
-            <Card key={folder.name} className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${folder.bgColor}`}>
-                    <folder.icon className={`h-6 w-6 ${folder.color}`} />
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="grid min-w-[600px] gap-4 sm:min-w-0 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
+            {folderStats.map((folder) => (
+              <Card key={folder.name} className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${folder.bgColor}`}>
+                      <folder.icon className={`h-6 w-6 ${folder.color}`} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{folder.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {folder.count} arquivo{folder.count !== 1 ? 's' : ''}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">{folder.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {folder.count} arquivo{folder.count !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 

@@ -162,44 +162,45 @@ export default function Connections() {
 
   return (
     <AppLayout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Conexões
-        </h1>
-        <p className="text-muted-foreground">
-          Visão de múltiplos números WhatsApp, contas Google Drive e regras de roteamento.
-        </p>
-      </div>
+      <div className="space-y-6 min-w-0 overflow-hidden">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Conexões
+          </h1>
+          <p className="text-muted-foreground">
+            Visão de múltiplos números WhatsApp, contas Google Drive e regras de roteamento.
+          </p>
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-3 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">WhatsApp conectados</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {connectedWhatsApp}/{subscription?.whatsapp_numbers_limit ?? 1}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Drives conectados</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {connectedGoogle}/{subscription?.google_accounts_limit ?? 1}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Regras ativas</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {activeRules}
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid gap-4 sm:grid-cols-3 mb-8">
+          <Card className="w-full min-w-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">WhatsApp conectados</CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">
+              {connectedWhatsApp}/{subscription?.whatsapp_numbers_limit ?? 1}
+            </CardContent>
+          </Card>
+          <Card className="w-full min-w-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Drives conectados</CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">
+              {connectedGoogle}/{subscription?.google_accounts_limit ?? 1}
+            </CardContent>
+          </Card>
+          <Card className="w-full min-w-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Regras ativas</CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">
+              {activeRules}
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <Card>
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+        <Card className="w-full min-w-0">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -233,7 +234,7 @@ export default function Connections() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="w-full min-w-0">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -277,9 +278,9 @@ export default function Connections() {
             ))}
           </CardContent>
         </Card>
-      </div>
+        </div>
 
-      <Card>
+      <Card className="w-full min-w-0">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -309,6 +310,7 @@ export default function Connections() {
           ))}
         </CardContent>
       </Card>
+      </div>
     </AppLayout>
   );
 }

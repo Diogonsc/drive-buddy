@@ -27,7 +27,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="fixed inset-x-0 top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:inset-x-auto">
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85">
           <div className="flex items-center gap-2 flex-1">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
@@ -71,7 +71,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             </Link>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pb-24 pt-20 transition-all duration-300 md:pb-4 md:pt-4">
+        <div className="flex flex-1 flex-col gap-4 p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
           <InstallBanner />
           {children}
         </div>
