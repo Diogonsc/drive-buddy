@@ -6,7 +6,7 @@ import { ArrowLeft, FileText } from "lucide-react";
 export default function TermsOfService() {
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-4xl px-4 py-8">
+      <div className="container mx-auto max-w-4xl min-w-0 px-4 py-8 overflow-x-hidden">
         <div className="mb-8">
           <Link to="/">
             <Button variant="ghost" size="sm" className="mb-4">
@@ -14,12 +14,12 @@ export default function TermsOfService() {
               Voltar ao app
             </Button>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
               <FileText className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 Termos de Serviço
               </h1>
               <p className="text-muted-foreground">
@@ -242,7 +242,7 @@ export default function TermsOfService() {
           </Card>
         </div>
 
-        <div className="mt-8 flex justify-center gap-4">
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
           <Link to="/privacy">
             <Button variant="outline">Ver Política de Privacidade</Button>
           </Link>

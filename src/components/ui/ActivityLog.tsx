@@ -119,7 +119,7 @@ export function ActivityLog({ entries, className, onReprocess, reprocessingId }:
             </div>
 
             {/* Status, Reprocessar & Time */}
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-col items-end gap-2 shrink-0 sm:flex-row sm:items-center sm:gap-3">
               <div className="flex items-center gap-1.5">
                 <StatusIcon className={cn("h-4 w-4", statusConfig[entry.status].color)} />
                 <span className={cn("text-xs font-medium", statusConfig[entry.status].color)}>

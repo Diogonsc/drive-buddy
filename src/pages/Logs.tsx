@@ -269,58 +269,59 @@ export default function Logs() {
 
   return (
     <AppLayout>
-      {/* Page Header */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Logs de Atividade
-              </h1>
-              <p className="text-muted-foreground">
-                Histórico de arquivos processados
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-                <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
-                Atualizar
-              </Button>
-              <Button variant="outline" onClick={handleExport}>
-                <Download className="mr-2 h-4 w-4" />
-                Exportar
-              </Button>
-            </div>
+      <div className="min-w-0 overflow-x-hidden">
+        {/* Page Header */}
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Logs de Atividade
+            </h1>
+            <p className="text-muted-foreground">
+              Histórico de arquivos processados
+            </p>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
+              Atualizar
+            </Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
+          </div>
+        </div>
 
-      {/* Stats Cards */}
-      <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <Card className="animate-fade-in" style={{ animationDelay: "100ms" }}>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">{stats.total}</div>
-                <p className="text-xs text-muted-foreground">Total de arquivos</p>
-              </CardContent>
-            </Card>
-            <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-emerald-600">{stats.success}</div>
-                <p className="text-xs text-muted-foreground">Sucesso</p>
-              </CardContent>
-            </Card>
-            <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-amber-600">{stats.pending}</div>
-                <p className="text-xs text-muted-foreground">Pendentes</p>
-              </CardContent>
-            </Card>
-            <Card className="animate-fade-in" style={{ animationDelay: "400ms" }}>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-destructive">{stats.error}</div>
-                <p className="text-xs text-muted-foreground">Erros</p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Stats Cards */}
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Card className="min-w-0 animate-fade-in" style={{ animationDelay: "100ms" }}>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-foreground">{stats.total}</div>
+              <p className="text-xs text-muted-foreground">Total de arquivos</p>
+            </CardContent>
+          </Card>
+          <Card className="min-w-0 animate-fade-in" style={{ animationDelay: "200ms" }}>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-emerald-600">{stats.success}</div>
+              <p className="text-xs text-muted-foreground">Sucesso</p>
+            </CardContent>
+          </Card>
+          <Card className="min-w-0 animate-fade-in" style={{ animationDelay: "300ms" }}>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-amber-600">{stats.pending}</div>
+              <p className="text-xs text-muted-foreground">Pendentes</p>
+            </CardContent>
+          </Card>
+          <Card className="min-w-0 animate-fade-in" style={{ animationDelay: "400ms" }}>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-destructive">{stats.error}</div>
+              <p className="text-xs text-muted-foreground">Erros</p>
+            </CardContent>
+          </Card>
+        </div>
 
       {/* Filters */}
-      <Card className="mb-6 animate-fade-in" style={{ animationDelay: "500ms" }}>
+      <Card className="mb-6 min-w-0 animate-fade-in" style={{ animationDelay: "500ms" }}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Filter className="h-4 w-4" />
@@ -328,9 +329,9 @@ export default function Logs() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 {/* Search */}
-                <div className="relative sm:col-span-2 lg:col-span-1">
+                <div className="relative min-w-0 sm:col-span-2 lg:col-span-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar arquivo ou remetente..."
@@ -417,10 +418,10 @@ export default function Logs() {
           </Card>
 
       {/* Table */}
-      <Card className="animate-fade-in" style={{ animationDelay: "600ms" }}>
+      <Card className="min-w-0 animate-fade-in" style={{ animationDelay: "600ms" }}>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <Table className="w-full min-w-[680px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">Tipo</TableHead>
@@ -495,7 +496,7 @@ export default function Logs() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t px-4 py-3">
+                <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted-foreground">
                     Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
                     {Math.min(currentPage * itemsPerPage, filteredLogs.length)} de{" "}
@@ -523,6 +524,7 @@ export default function Logs() {
               )}
             </CardContent>
           </Card>
+      </div>
     </AppLayout>
   );
 }

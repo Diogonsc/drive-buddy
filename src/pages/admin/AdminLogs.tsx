@@ -174,7 +174,7 @@ export default function AdminLogs() {
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 min-w-0 overflow-x-hidden">
         {/* Filtros */}
         <Card>
           <CardHeader className="pb-4">
@@ -187,8 +187,8 @@ export default function AdminLogs() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-              <div className="relative lg:col-span-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6 min-w-0">
+              <div className="relative min-w-0 lg:col-span-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Buscar..."
@@ -276,8 +276,8 @@ export default function AdminLogs() {
                 />
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <Table className="w-full min-w-[760px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Data</TableHead>
@@ -318,7 +318,7 @@ export default function AdminLogs() {
                     </Table>
                   </div>
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t px-4 py-3">
+                    <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-muted-foreground">
                         {(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, filtered.length)} de{" "}
                         {filtered.length}
@@ -352,7 +352,7 @@ export default function AdminLogs() {
 
       {/* Dialog de Detalhes */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full">
           <DialogHeader>
             <DialogTitle>Detalhe do log</DialogTitle>
             <DialogDescription>metadata em JSON (somente leitura).</DialogDescription>

@@ -15,12 +15,12 @@ export function RecentActivity({ entries, onRefresh, onViewAll, onReprocess, rep
   return (
     <div className="rounded-xl border border-border bg-card shadow-soft">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h2 className="font-semibold text-foreground">Atividade Recente</h2>
           <p className="text-sm text-muted-foreground">Últimos arquivos processados</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="sm"

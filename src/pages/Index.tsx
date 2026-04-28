@@ -368,92 +368,94 @@ const Index = () => {
         onConnectGoogleDrive={handleConnectGoogleDrive}
       />
 
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Dashboard
-        </h1>
-        <p className="text-muted-foreground">
-          Monitore suas automações e gerencie conexões
-        </p>
-      </div>
+      <div className="min-w-0 overflow-x-hidden">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Monitore suas automações e gerencie conexões
+          </p>
+        </div>
 
-      {/* Setup Progress */}
-      <div className="mb-8 animate-fade-in">
-        <SetupProgress
-          accountCreated={true}
-          whatsappConfigured={whatsappStatus === "connected" || whatsappStatus === "pending"}
-          googleDriveConnected={googleDriveStatus === "connected"}
-          firstMediaSent={metrics.totalFiles > 0}
-          onConnectGoogleDrive={handleConnectGoogleDrive}
-          onWhatsAppConnected={handleWhatsAppConnected}
-        />
-      </div>
-
-      {/* Flow Visualization */}
-      <div className="mb-8 animate-fade-in">
-        <FlowVisualization
-          whatsappConnected={whatsappStatus === "connected"}
-          googleDriveConnected={googleDriveStatus === "connected"}
-          isProcessing={whatsappStatus === "connected" && googleDriveStatus === "connected"}
-        />
-      </div>
-
-      {/* Connections */}
-      <div className="mb-8 animate-fade-in" style={{ animationDelay: "100ms" }}>
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Conexões</h2>
-        <ConnectionsOverview
-          whatsappStatus={whatsappStatus}
-          googleDriveStatus={googleDriveStatus}
-          whatsappNumber={whatsappPrimaryConnection?.phone_number_id || undefined}
-          googleDriveEmail={googleDriveStatus === "connected" ? user?.email : undefined}
-          onConnectWhatsApp={handleConnectWhatsApp}
-          onConnectGoogleDrive={handleConnectGoogleDrive}
-        />
-      </div>
-
-      {/* WhatsApp Status Details - Mostrar quando pending ou connected */}
-      {(whatsappStatus === "pending" || whatsappStatus === "connected") && (
-        <div className="mb-8 animate-fade-in" style={{ animationDelay: "150ms" }}>
-          <WhatsAppStatusDetails
-            status={whatsappStatus}
-            twilioNumber={whatsappPrimaryConnection?.twilio_whatsapp_number || whatsappPrimaryConnection?.phone_number_id}
-            accountSid={whatsappPrimaryConnection?.twilio_account_sid || undefined}
-            connectedAt={whatsappPrimaryConnection?.connected_at || undefined}
-            lastMessageAt={lastMediaReceivedAt || undefined}
-            onRefresh={handleRefreshWhatsAppStatus}
+        {/* Setup Progress */}
+        <div className="mb-8 animate-fade-in min-w-0">
+          <SetupProgress
+            accountCreated={true}
+            whatsappConfigured={whatsappStatus === "connected" || whatsappStatus === "pending"}
+            googleDriveConnected={googleDriveStatus === "connected"}
+            firstMediaSent={metrics.totalFiles > 0}
+            onConnectGoogleDrive={handleConnectGoogleDrive}
             onWhatsAppConnected={handleWhatsAppConnected}
-            isRefreshing={isRefreshing}
           />
         </div>
-      )}
 
-      {/* Health Monitoring */}
-      <div className="mb-8 animate-fade-in" style={{ animationDelay: "200ms" }}>
-        <HealthMonitor />
-      </div>
+        {/* Flow Visualization */}
+        <div className="mb-8 animate-fade-in min-w-0">
+          <FlowVisualization
+            whatsappConnected={whatsappStatus === "connected"}
+            googleDriveConnected={googleDriveStatus === "connected"}
+            isProcessing={whatsappStatus === "connected" && googleDriveStatus === "connected"}
+          />
+        </div>
 
-      {/* Analytics Dashboard */}
-      <div className="mb-8 animate-fade-in" style={{ animationDelay: "250ms" }}>
-        <AnalyticsDashboard />
-      </div>
+        {/* Connections */}
+        <div className="mb-8 animate-fade-in min-w-0" style={{ animationDelay: "100ms" }}>
+          <h2 className="mb-4 text-lg font-semibold text-foreground">Conexões</h2>
+          <ConnectionsOverview
+            whatsappStatus={whatsappStatus}
+            googleDriveStatus={googleDriveStatus}
+            whatsappNumber={whatsappPrimaryConnection?.phone_number_id || undefined}
+            googleDriveEmail={googleDriveStatus === "connected" ? user?.email : undefined}
+            onConnectWhatsApp={handleConnectWhatsApp}
+            onConnectGoogleDrive={handleConnectGoogleDrive}
+          />
+        </div>
 
-      {/* Metrics */}
-      <div className="mb-8 animate-fade-in" style={{ animationDelay: "300ms" }}>
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Métricas</h2>
-        <MetricsGrid metrics={metrics} />
-      </div>
+        {/* WhatsApp Status Details - Mostrar quando pending ou connected */}
+        {(whatsappStatus === "pending" || whatsappStatus === "connected") && (
+          <div className="mb-8 animate-fade-in min-w-0" style={{ animationDelay: "150ms" }}>
+            <WhatsAppStatusDetails
+              status={whatsappStatus}
+              twilioNumber={whatsappPrimaryConnection?.twilio_whatsapp_number || whatsappPrimaryConnection?.phone_number_id}
+              accountSid={whatsappPrimaryConnection?.twilio_account_sid || undefined}
+              connectedAt={whatsappPrimaryConnection?.connected_at || undefined}
+              lastMessageAt={lastMediaReceivedAt || undefined}
+              onRefresh={handleRefreshWhatsAppStatus}
+              onWhatsAppConnected={handleWhatsAppConnected}
+              isRefreshing={isRefreshing}
+            />
+          </div>
+        )}
 
-      {/* Recent Activity */}
-      <div className="animate-fade-in" style={{ animationDelay: "300ms" }}>
-        <RecentActivity
-          entries={logEntries}
-          onRefresh={handleRefresh}
-          onViewAll={handleViewAll}
-          onReprocess={handleReprocess}
-          reprocessingId={reprocessingId}
-          isLoading={isRefreshing}
-        />
+        {/* Health Monitoring */}
+        <div className="mb-8 animate-fade-in min-w-0" style={{ animationDelay: "200ms" }}>
+          <HealthMonitor />
+        </div>
+
+        {/* Analytics Dashboard */}
+        <div className="mb-8 animate-fade-in min-w-0" style={{ animationDelay: "250ms" }}>
+          <AnalyticsDashboard />
+        </div>
+
+        {/* Metrics */}
+        <div className="mb-8 animate-fade-in min-w-0" style={{ animationDelay: "300ms" }}>
+          <h2 className="mb-4 text-lg font-semibold text-foreground">Métricas</h2>
+          <MetricsGrid metrics={metrics} />
+        </div>
+
+        {/* Recent Activity */}
+        <div className="animate-fade-in min-w-0" style={{ animationDelay: "300ms" }}>
+          <RecentActivity
+            entries={logEntries}
+            onRefresh={handleRefresh}
+            onViewAll={handleViewAll}
+            onReprocess={handleReprocess}
+            reprocessingId={reprocessingId}
+            isLoading={isRefreshing}
+          />
+        </div>
       </div>
     </AppLayout>
   );

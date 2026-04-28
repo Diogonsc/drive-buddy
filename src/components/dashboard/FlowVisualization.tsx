@@ -17,100 +17,102 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
         <p className="text-sm text-muted-foreground">Visualize como seus arquivos são processados</p>
       </div>
 
-      <div className="flex items-center justify-between gap-2 py-4">
-        {/* WhatsApp */}
-        <div className="flex flex-col items-center gap-2">
-          <div
-            className={cn(
-              "flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300",
-              whatsappConnected
-                ? "bg-success/10 shadow-glow"
-                : "bg-muted"
-            )}
-          >
-            <MessageSquare
+      <div className="overflow-x-auto">
+        <div className="flex min-w-[480px] items-center justify-between gap-2 py-4 sm:min-w-0">
+          {/* WhatsApp */}
+          <div className="flex flex-col items-center gap-2">
+            <div
               className={cn(
-                "h-7 w-7",
-                whatsappConnected ? "text-success" : "text-muted-foreground"
+                "flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300",
+                whatsappConnected
+                  ? "bg-success/10 shadow-glow"
+                  : "bg-muted"
               )}
-            />
+            >
+              <MessageSquare
+                className={cn(
+                  "h-7 w-7",
+                  whatsappConnected ? "text-success" : "text-muted-foreground"
+                )}
+              />
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">WhatsApp</span>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">WhatsApp</span>
-        </div>
 
-        {/* Arrow 1 */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className={cn(
-            "h-0.5 flex-1 max-w-16 transition-colors",
-            whatsappConnected ? "bg-primary" : "bg-border"
-          )} />
-          <ArrowRight className={cn(
-            "h-5 w-5 mx-1 transition-colors",
-            whatsappConnected ? "text-primary" : "text-muted-foreground",
-            isProcessing && "animate-pulse"
-          )} />
-          <div className={cn(
-            "h-0.5 flex-1 max-w-16 transition-colors",
-            whatsappConnected ? "bg-primary" : "bg-border"
-          )} />
-        </div>
+          {/* Arrow 1 */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className={cn(
+              "h-0.5 flex-1 max-w-16 transition-colors",
+              whatsappConnected ? "bg-primary" : "bg-border"
+            )} />
+            <ArrowRight className={cn(
+              "h-5 w-5 mx-1 transition-colors",
+              whatsappConnected ? "text-primary" : "text-muted-foreground",
+              isProcessing && "animate-pulse"
+            )} />
+            <div className={cn(
+              "h-0.5 flex-1 max-w-16 transition-colors",
+              whatsappConnected ? "bg-primary" : "bg-border"
+            )} />
+          </div>
 
-        {/* Backend */}
-        <div className="flex flex-col items-center gap-2">
-          <div
-            className={cn(
-              "flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300",
-              allConnected
-                ? "bg-primary/10 shadow-glow"
-                : "bg-muted"
-            )}
-          >
-            <Server
+          {/* Backend */}
+          <div className="flex flex-col items-center gap-2">
+            <div
               className={cn(
-                "h-7 w-7",
-                allConnected ? "text-primary" : "text-muted-foreground",
-                isProcessing && "animate-pulse"
+                "flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300",
+                allConnected
+                  ? "bg-primary/10 shadow-glow"
+                  : "bg-muted"
               )}
-            />
+            >
+              <Server
+                className={cn(
+                  "h-7 w-7",
+                  allConnected ? "text-primary" : "text-muted-foreground",
+                  isProcessing && "animate-pulse"
+                )}
+              />
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">Swiftwapdrive</span>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">Swiftwapdrive</span>
-        </div>
 
-        {/* Arrow 2 */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className={cn(
-            "h-0.5 flex-1 max-w-16 transition-colors",
-            googleDriveConnected ? "bg-primary" : "bg-border"
-          )} />
-          <ArrowRight className={cn(
-            "h-5 w-5 mx-1 transition-colors",
-            googleDriveConnected ? "text-primary" : "text-muted-foreground",
-            isProcessing && "animate-pulse"
-          )} />
-          <div className={cn(
-            "h-0.5 flex-1 max-w-16 transition-colors",
-            googleDriveConnected ? "bg-primary" : "bg-border"
-          )} />
-        </div>
+          {/* Arrow 2 */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className={cn(
+              "h-0.5 flex-1 max-w-16 transition-colors",
+              googleDriveConnected ? "bg-primary" : "bg-border"
+            )} />
+            <ArrowRight className={cn(
+              "h-5 w-5 mx-1 transition-colors",
+              googleDriveConnected ? "text-primary" : "text-muted-foreground",
+              isProcessing && "animate-pulse"
+            )} />
+            <div className={cn(
+              "h-0.5 flex-1 max-w-16 transition-colors",
+              googleDriveConnected ? "bg-primary" : "bg-border"
+            )} />
+          </div>
 
-        {/* Google Drive */}
-        <div className="flex flex-col items-center gap-2">
-          <div
-            className={cn(
-              "flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300",
-              googleDriveConnected
-                ? "bg-primary/10 shadow-glow"
-                : "bg-muted"
-            )}
-          >
-            <HardDrive
+          {/* Google Drive */}
+          <div className="flex flex-col items-center gap-2">
+            <div
               className={cn(
-                "h-7 w-7",
-                googleDriveConnected ? "text-primary" : "text-muted-foreground"
+                "flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-300",
+                googleDriveConnected
+                  ? "bg-primary/10 shadow-glow"
+                  : "bg-muted"
               )}
-            />
+            >
+              <HardDrive
+                className={cn(
+                  "h-7 w-7",
+                  googleDriveConnected ? "text-primary" : "text-muted-foreground"
+                )}
+              />
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">Google Drive</span>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">Google Drive</span>
         </div>
       </div>
 

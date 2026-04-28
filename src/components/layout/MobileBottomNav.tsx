@@ -105,7 +105,7 @@ export function MobileBottomNav() {
               <span className="text-[11px] leading-none">Perfil</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="max-h-[88dvh] rounded-t-2xl">
+          <SheetContent side="bottom" className="inset-x-0 w-full max-w-none max-h-[88dvh] rounded-t-2xl px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <SheetHeader>
               <SheetTitle>Perfil</SheetTitle>
               <SheetDescription>

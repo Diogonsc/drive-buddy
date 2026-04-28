@@ -59,19 +59,19 @@ export function StatusCard({
   return (
     <div
       className={cn(
-        "flex items-center justify-between rounded-lg border bg-card p-4",
+        "flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between",
         className
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
           <Icon className="h-4 w-4 text-muted-foreground" />
         </div>
-        <span className="text-sm font-medium text-foreground">{title}</span>
+        <span className="truncate text-sm font-medium text-foreground">{title}</span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <StatusIcon className={cn("h-4 w-4", config.color)} />
-        <span className={cn("text-sm", config.color)}>
+        <span className={cn("truncate text-sm", config.color)}>
           {statusLabel ?? config.label}
         </span>
       </div>

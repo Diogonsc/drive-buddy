@@ -61,7 +61,7 @@ export function ConnectionCard({
           {details.map((detail, index) => (
             <div key={index} className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{detail.label}</span>
-              <span className="font-medium text-foreground">{detail.value}</span>
+              <span className="max-w-[60%] truncate text-right font-medium text-foreground">{detail.value}</span>
             </div>
           ))}
         </div>

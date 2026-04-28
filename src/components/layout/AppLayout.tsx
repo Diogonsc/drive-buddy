@@ -71,7 +71,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             </Link>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
           <InstallBanner />
           {children}
         </div>

@@ -113,7 +113,7 @@ export default function OAuthCallback() {
           {status === 'error' && (
             <>
               <XCircle className="h-12 w-12 text-destructive" />
-              <div className="flex gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <Button variant="outline" onClick={() => navigate('/connections')}>
                   Voltar para Conexões
                 </Button>

@@ -117,7 +117,7 @@ export default function AdminUsers() {
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 min-w-0 overflow-x-hidden">
         {/* Aviso sobre limitações */}
         <Alert variant="default" className="border-muted">
           <Info className="h-4 w-4" />
@@ -137,7 +137,7 @@ export default function AdminUsers() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por user_id..."
@@ -147,7 +147,7 @@ export default function AdminUsers() {
                 />
               </div>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -187,8 +187,8 @@ export default function AdminUsers() {
                 />
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <Table className="w-full min-w-[640px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>user_id</TableHead>
@@ -225,7 +225,7 @@ export default function AdminUsers() {
                     </Table>
                   </div>
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t px-4 py-3">
+                    <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-muted-foreground">
                         {(page - 1) * ITEMS_PER_PAGE + 1}–
                         {Math.min(page * ITEMS_PER_PAGE, filtered.length)} de {filtered.length}

@@ -92,7 +92,7 @@ export default function AdminDashboard() {
           <span className="text-muted-foreground">Carregando...</span>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-8 min-w-0 overflow-x-hidden">
           {/* Métricas de Usuários */}
           <AdminSection title="Usuários por Role" description="Fonte: user_roles (SELECT permitido)">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -195,8 +195,8 @@ export default function AdminDashboard() {
             <Card>
               <CardContent className="p-0">
                 {recentLogs && recentLogs.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <Table className="w-full min-w-[760px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Data</TableHead>

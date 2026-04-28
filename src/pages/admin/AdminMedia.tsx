@@ -156,7 +156,7 @@ export default function AdminMedia() {
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 min-w-0 overflow-x-hidden">
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-base flex items-center gap-2">
@@ -165,12 +165,12 @@ export default function AdminMedia() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input placeholder="Arquivo, remetente ou user_id..." value={search} onChange={(e) => handleSearchChange(e.target.value)} className="pl-9" />
               </div>
               <Select value={statusFilter} onValueChange={handleFilterChange(setStatusFilter)}>
-                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os status</SelectItem>
                   <SelectItem value="completed">Concluído</SelectItem>
@@ -179,7 +179,7 @@ export default function AdminMedia() {
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={handleFilterChange(setTypeFilter)}>
-                <SelectTrigger className="w-[140px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[140px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os tipos</SelectItem>
                   <SelectItem value="image">Imagens</SelectItem>
@@ -206,8 +206,8 @@ export default function AdminMedia() {
                 <EmptyState icon={FolderOpen} title="Nenhum arquivo encontrado" description="Tente ajustar os filtros." />
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <Table className="w-full min-w-[840px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-10">Tipo</TableHead>
@@ -271,7 +271,7 @@ export default function AdminMedia() {
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="flex items-center justify-between border-t px-4 py-3">
+                  <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
                       {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data?.count ?? 0)} de {data?.count ?? 0}
                     </p>
@@ -289,7 +289,7 @@ export default function AdminMedia() {
       </div>
 
       <Dialog open={!!selectedFile} onOpenChange={(open) => !open && setSelectedFile(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full">
           <DialogHeader>
             <DialogTitle className="truncate">{selectedFile?.file_name}</DialogTitle>
             <DialogDescription>Detalhes do arquivo processado</DialogDescription>

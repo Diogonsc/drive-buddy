@@ -75,7 +75,7 @@ export default function AdminSettings() {
         </p>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-8 min-w-0 overflow-x-hidden">
         {/* 1. Informações do Sistema */}
         <AdminSection
           title="Informações do Sistema"
@@ -145,8 +145,8 @@ export default function AdminSettings() {
           <Card>
             <CardContent className="p-0">
               {planDistribution && planDistribution.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <Table className="w-full min-w-[480px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Plano</TableHead>
@@ -192,8 +192,8 @@ export default function AdminSettings() {
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : userRoles && userRoles.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <Table className="w-full min-w-[640px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>user_id</TableHead>
