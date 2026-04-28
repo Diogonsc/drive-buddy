@@ -42,7 +42,7 @@ import {
   Eye,
   Loader2,
 } from "lucide-react";
-import { LogEntry } from "@/components/ui/ActivityLog";
+import { LogEntry, MediaType } from "@/components/ui/ActivityLog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -104,6 +104,54 @@ const StatusBadge = ({ status }: { status: string }) => {
     default:
       return null;
   }
+};
+
+const mapMediaType = (fileType: string): MediaType => {
+  if (fileType === "image" || fileType === "video" || fileType === "audio" || fileType === "document") {
+    return fileType;
+  }
+  return "document";
+};
+
+interface MobileLogCardProps {
+  log: LogEntry;
+  formatTimestamp: (date: Date) => string;
+}
+
+function truncateFileNameForMobile(fileName: string, maxLength = 22): string {
+  if (fileName.length <= maxLength) return fileName;
+  return `${fileName.slice(0, maxLength)}...`;
+}
+
+
+const MobileLogCard = ({ log, formatTimestamp }: MobileLogCardProps) => {
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <MediaIcon type={log.mediaType} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-foreground truncate">{truncateFileNameForMobile(log.fileName)}</p>
+            <p className="text-xs text-muted-foreground truncate">{log.sender}</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+          <Eye className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <StatusBadge status={log.status} />
+        <span className="text-xs text-muted-foreground">{formatTimestamp(log.timestamp)}</span>
+      </div>
+
+      {log.errorMessage && (
+        <p className="text-xs text-destructive">{log.errorMessage}</p>
+      )}
+    </div>
+  );
 };
 
 export default function Logs() {
@@ -174,7 +222,7 @@ export default function Logs() {
 
       const logEntries: LogEntry[] = (data || []).map(file => ({
         id: file.id,
-        mediaType: file.file_type as any,
+        mediaType: mapMediaType(file.file_type),
         fileName: file.file_name,
         sender: file.sender_phone || file.sender_name || 'Desconhecido',
         timestamp: new Date(file.received_at),
@@ -420,7 +468,24 @@ export default function Logs() {
       {/* Table */}
       <Card className="min-w-0 animate-fade-in" style={{ animationDelay: "600ms" }}>
             <CardContent className="p-0">
-              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="space-y-3 p-4 sm:hidden">
+                {isLoading ? (
+                  <div className="flex h-24 items-center justify-center gap-2 rounded-lg border">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : paginatedLogs.length === 0 ? (
+                  <div className="flex h-24 items-center justify-center rounded-lg border text-sm text-muted-foreground">
+                    Nenhum registro encontrado
+                  </div>
+                ) : (
+                  paginatedLogs.map((log) => (
+                    <MobileLogCard key={log.id} log={log} formatTimestamp={formatTimestamp} />
+                  ))
+                )}
+              </div>
+
+              <div className="hidden overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:block">
                 <Table className="w-full min-w-[680px]">
                   <TableHeader>
                     <TableRow>

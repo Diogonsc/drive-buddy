@@ -172,7 +172,7 @@ export default function Files() {
         </Card>
       ) : (
         <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="grid min-w-[600px] gap-4 sm:min-w-0 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
+          <div className="grid gap-4 sm:min-w-0 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
             {folderStats.map((folder) => (
               <Card key={folder.name} className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50">
                 <CardContent className="p-6">

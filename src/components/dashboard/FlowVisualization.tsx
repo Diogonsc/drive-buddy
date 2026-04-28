@@ -18,7 +18,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
       </div>
 
       <div className="overflow-x-auto">
-        <div className="flex min-w-[480px] items-center justify-between gap-2 py-4 sm:min-w-0">
+        <div className="flex items-center justify-between gap-2 py-4 sm:min-w-0">
           {/* WhatsApp */}
           <div className="flex flex-col items-center gap-2">
             <div

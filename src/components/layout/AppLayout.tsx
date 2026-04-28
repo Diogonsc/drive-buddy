@@ -27,16 +27,16 @@ export function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85">
-          <div className="flex items-center gap-2 flex-1">
+        <header className="sticky top-0 z-40 flex h-16 min-w-0 shrink-0 items-center gap-2 overflow-x-clip border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex min-w-0 items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <FaCloud className="h-4 w-4 text-primary-foreground" />
               </div>
-              <div>
-                <h1 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
+              <div className="min-w-0">
+                <h1 className="truncate text-base font-bold tracking-tight text-foreground sm:text-lg">
                   Swiftwapdrive
                 </h1>
                 <p className="hidden text-xs text-muted-foreground -mt-0.5 sm:block">
@@ -45,7 +45,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
             </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {isAdmin && (
               <TooltipProvider>
                 <Tooltip>

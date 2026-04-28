@@ -447,7 +447,7 @@ const Index = () => {
 
         {/* Recent Activity */}
         <div className="animate-fade-in min-w-0" style={{ animationDelay: "300ms" }}>
-          <RecentActivity
+         <RecentActivity
             entries={logEntries}
             onRefresh={handleRefresh}
             onViewAll={handleViewAll}

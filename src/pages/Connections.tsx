@@ -213,8 +213,8 @@ export default function Connections() {
                 </div>
               </div>
               <Button variant="outline" size="sm" onClick={() => navigate("/settings?tab=whatsapp")}>
-                <Settings className="h-4 w-4 mr-2" />
-                Gerenciar
+                <Settings className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Gerenciar</span>
               </Button>
             </div>
           </CardHeader>
@@ -247,8 +247,8 @@ export default function Connections() {
                 </div>
               </div>
               <Button variant="outline" size="sm" onClick={() => navigate("/settings?tab=google")}>
-                <Settings className="h-4 w-4 mr-2" />
-                Gerenciar
+                <Settings className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Gerenciar</span>
               </Button>
             </div>
           </CardHeader>
@@ -288,8 +288,8 @@ export default function Connections() {
               <CardDescription>Como as mídias são direcionadas para cada conta Drive</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate("/settings?tab=routing")}>
-              <LinkIcon className="h-4 w-4 mr-2" />
-              Editar regras
+              <LinkIcon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Editar regras</span>
             </Button>
           </div>
         </CardHeader>

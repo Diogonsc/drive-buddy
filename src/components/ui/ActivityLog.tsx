@@ -72,6 +72,11 @@ function formatRelativeTime(date: Date): string {
   return `${days}d atrás`;
 }
 
+function truncateFileNameForMobile(fileName: string, maxLength = 22): string {
+  if (fileName.length <= maxLength) return fileName;
+  return `${fileName.slice(0, maxLength)}...`;
+}
+
 export function ActivityLog({ entries, className, onReprocess, reprocessingId }: ActivityLogProps) {
   if (entries.length === 0) {
     return (
@@ -110,7 +115,10 @@ export function ActivityLog({ entries, className, onReprocess, reprocessingId }:
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium text-foreground truncate">
-                  {entry.fileName}
+                  <span className="sm:hidden">
+                    {truncateFileNameForMobile(entry.fileName)}
+                  </span>
+                  <span className="hidden sm:inline">{entry.fileName}</span>
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
