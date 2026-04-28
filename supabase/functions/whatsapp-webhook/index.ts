@@ -78,30 +78,16 @@ Deno.serve(async (req) => {
     })
   }
 
-  // No modelo compartilhado, identifica o usuário pelo número de origem (From)
-  // cruzando com o customer_phone_number cadastrado no onboarding
-  const senderPhone = from.replace('whatsapp:', '')
-  
-  const { data: connection } = await supabase
-    .from('whatsapp_connections')
-    .select('id, user_id, twilio_subaccount_sid, twilio_subaccount_auth_token')
-    .eq('twilio_whatsapp_number', to)
-    .eq('customer_phone_number', senderPhone)
-    .in('status', ['connected', 'pending'])
-    .maybeSingle()
-
-  // Se não encontrou pelo número exato, busca qualquer conexão ativa 
-  // com este número Twilio (fallback para quando o remetente é desconhecido)
-  const { data: fallbackConnection } = !connection ? await supabase
+  // Identifica o usuário pelo número Twilio de destino (To)
+  // O From (remetente) é salvo como sender_phone no registro de mídia
+  const { data: activeConnection } = await supabase
     .from('whatsapp_connections')
     .select('id, user_id, twilio_subaccount_sid, twilio_subaccount_auth_token')
     .eq('twilio_whatsapp_number', to)
     .in('status', ['connected', 'pending'])
     .order('created_at', { ascending: true })
     .limit(1)
-    .maybeSingle() : { data: null }
-
-  const activeConnection = connection || fallbackConnection
+    .maybeSingle()
 
   if (!activeConnection) {
     console.error(`[WEBHOOK] Nenhuma conexão para número: ${to}`)

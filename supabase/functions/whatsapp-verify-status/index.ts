@@ -86,19 +86,27 @@ Deno.serve(async (req: Request) => {
       twilio_whatsapp_number: connectionData?.twilio_whatsapp_number as string | null,
     }
 
-    // Buscar credenciais Twilio da conexão
-    const twilioAccountSid = connection.twilio_account_sid?.trim()
-    const twilioAuthToken = connection.twilio_auth_token?.trim()
+    // Credenciais Twilio: usa da conexão (modelo subaccount) ou fallback
+    // para os Secrets globais (modelo compartilhado atual)
+    const twilioAccountSid = (
+      connection.twilio_account_sid?.trim() ||
+      Deno.env.get('TWILIO_ACCOUNT_SID') ||
+      ''
+    )
+    const twilioAuthToken = (
+      connection.twilio_auth_token?.trim() ||
+      Deno.env.get('TWILIO_AUTH_TOKEN') ||
+      ''
+    )
 
     if (!twilioAccountSid || !twilioAuthToken) {
       return json(
         {
           success: false,
-          error:
-            "Configure Account SID e Auth Token da Twilio nas Configurações.",
+          error: 'Credenciais Twilio não configuradas na plataforma.',
         },
         400,
-      );
+      )
     }
 
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`)
@@ -133,8 +141,12 @@ Deno.serve(async (req: Request) => {
       success: true,
       friendly_name: data.friendly_name,
       twilio_status: data.status,
-      whatsapp_number: connection.twilio_whatsapp_number,
-    });
+      whatsapp_number: (
+        connection.twilio_whatsapp_number ||
+        Deno.env.get('TWILIO_WHATSAPP_NUMBER') ||
+        null
+      ),
+    })
   } catch (e) {
     console.error("whatsapp-verify-status error:", e);
 
