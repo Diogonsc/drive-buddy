@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "logo.png", "fundo-mobile.png"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "logo.png"],
       manifest: {
         name: "Swiftwapdrive - WhatsApp to Google Drive",
         short_name: "Swiftwapdrive",
@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         icons: [
           { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
-          { src: "/fundo-mobile.png", sizes: "1024x1024", type: "image/png", purpose: "any maskable" },
+          { src: "/logo.png", sizes: "1024x1024", type: "image/png", purpose: "any maskable" },
         ],
       },
       workbox: {
