@@ -740,7 +740,7 @@ export default function Settings() {
             <CardHeader>
               <CardTitle>Consumo do mês</CardTitle>
               <CardDescription>
-                Plano Essencial — 200 mídias inclusas | R$ 0,10 por mídia excedente
+                Plano Essencial — 200 mídias inclusas | R$ 0,25 por mídia excedente
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -773,7 +773,7 @@ export default function Settings() {
                   {(
                     ((subscription?.files_used_current_month ?? 0) -
                       (subscription?.monthly_file_limit ?? 200)) *
-                    0.1
+                    0.25
                   ).toFixed(2).replace(".", ",")} adicionais este mês
                 </div>
               )}

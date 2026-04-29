@@ -142,7 +142,7 @@ export function MobileBottomNav() {
                     <div className="flex justify-between text-amber-600">
                       <span>Excedente</span>
                       <span>
-                        R$ {(((plan?.files_used_current_month ?? 0) - (plan?.monthly_file_limit ?? 200)) * 0.1)
+                        R$ {(((plan?.files_used_current_month ?? 0) - (plan?.monthly_file_limit ?? 200)) * 0.25)
                           .toFixed(2).replace('.', ',')}
                       </span>
                     </div>

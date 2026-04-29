@@ -357,7 +357,7 @@ async function registerPlanUsage(
         status: 'completed',
         message:
           usedAfter >= limit
-            ? `Mídias inclusas esgotadas (${usedAfter}/${limit}) — excedente: R$ 0,10/mídia`
+            ? `Mídias inclusas esgotadas (${usedAfter}/${limit}) — excedente: R$ 0,25/mídia`
             : `Uso do plano atingiu ${marker.label} (${usedAfter}/${limit})`,
         metadata: { used: usedAfter, limit, ratio: marker.ratio },
         source: 'process-media',
