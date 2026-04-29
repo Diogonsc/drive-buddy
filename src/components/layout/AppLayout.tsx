@@ -46,7 +46,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <img
                   src={logo}
                   alt="Swiftwapdrive"
-                  className="h-10 w-10 rounded-lg text-primary-foreground"
+                  className="h-6 w-6 rounded-lg text-primary-foreground"
                 />
               </div>
               <div className="min-w-0">
