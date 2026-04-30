@@ -168,15 +168,31 @@ async function ensureDriveFolder(
   return createJson.id as string;
 }
 
-async function ensureDrivePath(token: string, fullPath: string): Promise<string> {
+async function ensureDrivePath(
+  token: string,
+  fullPath: string,
+  userId: string,
+  googleAccountId: string,
+): Promise<string> {
   const parts = fullPath
     .split("/")
     .map((p) => p.trim())
     .filter(Boolean);
 
   let parentId = "root";
+  let currentPath = "";
+
   for (const part of parts) {
-    // Retry até 3 vezes por nível de pasta para lidar com falhas transitórias
+    currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
+
+    // Verifica cache para este nível
+    const cached = await getCachedFolderId(userId, googleAccountId, currentPath);
+    if (cached) {
+      parentId = cached;
+      continue;
+    }
+
+    // Não está no cache — cria e salva
     let lastError: Error | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -185,13 +201,16 @@ async function ensureDrivePath(token: string, fullPath: string): Promise<string>
         break;
       } catch (err) {
         lastError = err as Error;
-        console.warn(`[DRIVE] Tentativa ${attempt + 1} falhou para pasta "${part}":`, err);
-        // Espera antes de tentar novamente
+        console.warn(`[DRIVE] Tentativa ${attempt + 1} falhou para "${part}":`, err);
         await new Promise(r => setTimeout(r, (attempt + 1) * 500));
       }
     }
     if (lastError) throw lastError;
+
+    // Salva este nível no cache
+    await cacheFolderId(userId, googleAccountId, currentPath, parentId);
   }
+
   return parentId;
 }
 
@@ -583,9 +602,14 @@ Deno.serve(async (req) => {
     let targetFolderId = await getCachedFolderId(userId, googleAccountId, targetPath)
     
     if (!targetFolderId) {
-      // Pasta não está no cache — cria no Drive e salva no cache
-      targetFolderId = await ensureDrivePath(googleToken!, targetPath)
-      await cacheFolderId(userId, googleAccountId, targetPath, targetFolderId)
+      targetFolderId = await ensureDrivePath(
+        googleToken!,
+        targetPath,
+        userId,
+        googleAccountId,
+      )
+      // Nota: o cacheFolderId do caminho final já é feito dentro
+      // do ensureDrivePath no último nível — não precisa chamar aqui
     }
 
     const { fileId: driveFileId, webViewLink } = await uploadToGoogleDrive(
