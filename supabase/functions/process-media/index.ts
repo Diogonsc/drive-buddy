@@ -195,6 +195,41 @@ async function ensureDrivePath(token: string, fullPath: string): Promise<string>
   return parentId;
 }
 
+// Busca ID de pasta no cache do banco
+async function getCachedFolderId(
+  userId: string,
+  googleAccountId: string,
+  folderPath: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('drive_folder_cache')
+    .select('folder_id')
+    .eq('user_id', userId)
+    .eq('google_account_id', googleAccountId)
+    .eq('folder_path', folderPath)
+    .maybeSingle()
+  return data?.folder_id ?? null
+}
+
+// Salva ID de pasta no cache do banco
+async function cacheFolderId(
+  userId: string,
+  googleAccountId: string,
+  folderPath: string,
+  folderId: string,
+): Promise<void> {
+  await supabase
+    .from('drive_folder_cache')
+    .upsert({
+      user_id: userId,
+      google_account_id: googleAccountId,
+      folder_path: folderPath,
+      folder_id: folderId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,google_account_id,folder_path' })
+    .select()
+}
+
 async function uploadToGoogleDrive(
   token: string,
   fileName: string,
@@ -539,7 +574,19 @@ Deno.serve(async (req) => {
                       'desconhecido'
     const senderIdentifier = rawSender.replace(/[^a-zA-Z0-9\s\+\-\_]/g, '').trim().slice(0, 50)
     const targetPath = buildFolderPath(baseFolderPath, fileType, media.received_at, folderStructure, senderIdentifier);
-    const targetFolderId = await ensureDrivePath(googleToken!, targetPath);
+    
+    // Busca ID da pasta no cache antes de criar no Drive
+    const googleAccountId = googleAccount.source === "multi" 
+      ? (accountRow.id as string) 
+      : 'legacy'
+    
+    let targetFolderId = await getCachedFolderId(userId, googleAccountId, targetPath)
+    
+    if (!targetFolderId) {
+      // Pasta não está no cache — cria no Drive e salva no cache
+      targetFolderId = await ensureDrivePath(googleToken!, targetPath)
+      await cacheFolderId(userId, googleAccountId, targetPath, targetFolderId)
+    }
 
     const { fileId: driveFileId, webViewLink } = await uploadToGoogleDrive(
       googleToken!,
