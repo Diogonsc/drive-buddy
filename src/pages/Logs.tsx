@@ -554,7 +554,7 @@ export default function Logs() {
               </div>
 
               <div className="hidden overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:block">
-                <Table className="w-full min-w-[780px]">
+                <Table className="w-full min-w-[680px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">Tipo</TableHead>
@@ -569,7 +569,7 @@ export default function Logs() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             <span className="text-muted-foreground">Carregando...</span>
@@ -578,7 +578,7 @@ export default function Logs() {
                       </TableRow>
                     ) : paginatedLogs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           Nenhum registro encontrado
                         </TableCell>
                       </TableRow>
