@@ -146,6 +146,10 @@ interface LogDetail {
   whatsapp_message_id: string | null
 }
 
+interface TableLogEntry extends LogEntry {
+  senderName: string
+}
+
 function truncateFileNameForMobile(fileName: string, maxLength = 22): string {
   if (fileName.length <= maxLength) return fileName;
   return `${fileName.slice(0, maxLength)}...`;
@@ -192,7 +196,7 @@ export default function Logs() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState<TableLogEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedLog, setSelectedLog] = useState<LogDetail | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -251,10 +255,11 @@ export default function Logs() {
 
       if (error) throw error;
 
-      const logEntries: LogEntry[] = (data || []).map(file => ({
+      const logEntries: TableLogEntry[] = (data || []).map(file => ({
         id: file.id,
         mediaType: mapMediaType(file.file_type),
         fileName: file.file_name,
+        senderName: file.sender_name || '—',
         sender: file.sender_phone || file.sender_name || 'Desconhecido',
         timestamp: new Date(file.received_at),
         status: mapStatus(file.status),
@@ -549,11 +554,12 @@ export default function Logs() {
               </div>
 
               <div className="hidden overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:block">
-                <Table className="w-full min-w-[680px]">
+                <Table className="w-full min-w-[780px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">Tipo</TableHead>
                       <TableHead>Arquivo</TableHead>
+                      <TableHead className="hidden sm:table-cell">Nome</TableHead>
                       <TableHead className="hidden sm:table-cell">Remetente</TableHead>
                       <TableHead className="hidden md:table-cell">Data/Hora</TableHead>
                       <TableHead>Status</TableHead>
@@ -563,7 +569,7 @@ export default function Logs() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             <span className="text-muted-foreground">Carregando...</span>
@@ -572,7 +578,7 @@ export default function Logs() {
                       </TableRow>
                     ) : paginatedLogs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                           Nenhum registro encontrado
                         </TableCell>
                       </TableRow>
@@ -598,6 +604,9 @@ export default function Logs() {
                                 </p>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <span className="text-muted-foreground">{log.senderName}</span>
                           </TableCell>
                           <TableCell className="hidden sm:table-cell">
                             <span className="text-muted-foreground">{log.sender}</span>
