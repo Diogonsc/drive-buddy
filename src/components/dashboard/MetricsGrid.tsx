@@ -37,6 +37,16 @@ export function MetricsGrid({ metrics }: MetricsGridProps) {
         icon={Video}
       />
       <MetricCard
+        title="Áudios"
+        value={metrics.audios}
+        icon={FileAudio}
+      />
+      <MetricCard
+        title="Documentos"
+        value={metrics.documents}
+        icon={FileText}
+      />
+      <MetricCard
         title="Armazenamento"
         value={metrics.storageUsed}
         subtitle="Utilizado no Drive"

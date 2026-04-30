@@ -47,6 +47,7 @@ const Index = () => {
   const [lastMediaReceivedAt, setLastMediaReceivedAt] = useState<string | null>(null);
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const isAutoRefreshingRef = useRef(false);
   const {
     isLoading: isLoadingConnections,
     whatsappConnections,
@@ -192,6 +193,29 @@ const Index = () => {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [user, loadMetrics, loadRecentActivity]);
+
+  // Fallback de atualização contínua para refletir status sem precisar recarregar a página
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = window.setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      if (isAutoRefreshingRef.current) return;
+
+      isAutoRefreshingRef.current = true;
+      try {
+        await Promise.all([loadMetrics(), loadRecentActivity()]);
+      } catch (error) {
+        console.error("Error auto refreshing dashboard activity:", error);
+      } finally {
+        isAutoRefreshingRef.current = false;
+      }
+    }, 3000);
+
+    return () => {
+      window.clearInterval(interval);
     };
   }, [user, loadMetrics, loadRecentActivity]);
 
