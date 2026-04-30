@@ -160,10 +160,14 @@ Deno.serve(async (req) => {
       .eq('id', activeConnection.id)
       .eq('status', 'pending')
 
-    // Dispara processamento assíncrono
-    supabase.functions.invoke('process-media', {
-      body: { mediaFileId: mediaFile.id },
-    }).catch(err => console.error('[WEBHOOK] process-media error:', err))
+    // Processa em sequência para evitar condição de corrida nas pastas do Drive
+    try {
+      await supabase.functions.invoke('process-media', {
+        body: { mediaFileId: mediaFile.id },
+      })
+    } catch (err) {
+      console.error('[WEBHOOK] process-media error:', err)
+    }
   }
 
   return new Response('<Response></Response>', {
