@@ -53,7 +53,7 @@ function HealthIndicator({ status, label, message, lastCheck, icon: ServiceIcon 
   const StatusIcon = config.icon;
 
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 transition-colors hover:bg-muted">
+    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 transition-colors border border-border hover:border-primary/50 hover:bg-muted">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background border border-border">
         <ServiceIcon className="h-4 w-4 text-muted-foreground" />
       </div>

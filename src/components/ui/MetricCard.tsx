@@ -17,7 +17,7 @@ export function MetricCard({ title, value, subtitle, icon: Icon, trend, classNam
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl bg-card border border-border p-5 shadow-soft transition-all duration-300 hover:shadow-medium hover:-translate-y-0.5",
+        "relative overflow-hidden rounded-xl bg-card border border-border p-5 shadow-soft transition-all duration-300 hover:border-primary/50 hover:shadow-medium hover:-translate-y-0.5",
         className
       )}
     >
