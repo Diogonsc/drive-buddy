@@ -51,6 +51,48 @@ function getFileType(mime: string): 'image' | 'video' | 'audio' | 'document' {
   return 'document'
 }
 
+// Envia mensagem de resposta automática via Twilio
+async function sendTwilioReply(
+  to: string,   // número de quem enviou (From)
+  from: string, // número Twilio da plataforma (To)
+  message: string,
+): Promise<void> {
+  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
+  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
+  if (!accountSid || !authToken) return
+
+  const credentials = btoa(`${accountSid}:${authToken}`)
+  await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        From: from,
+        To: to,
+        Body: message,
+      }).toString(),
+    },
+  ).catch(err => console.error('[WEBHOOK] Erro ao enviar resposta automática:', err))
+}
+
+// Retorna mensagem de erro amigável baseada no tipo de mídia
+function getFileSizeErrorMessage(mimeType: string): string {
+  if (mimeType.startsWith('video/')) {
+    return '⚠️ Vídeo não processado: o arquivo é muito grande (máximo 16 MB).\n\nDica: compacte o vídeo ou envie em partes menores e tente novamente.'
+  }
+  if (mimeType.startsWith('image/')) {
+    return '⚠️ Imagem não processada: o arquivo é muito grande (máximo 5 MB).\n\nTente enviar a imagem em resolução menor.'
+  }
+  if (mimeType.startsWith('audio/')) {
+    return '⚠️ Áudio não processado: o arquivo é muito grande (máximo 16 MB).\n\nTente enviar o áudio em partes menores.'
+  }
+  return '⚠️ Arquivo não processado: o tamanho excede o limite permitido.\n\nVerifique o tamanho e tente novamente.'
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
   if (req.method === 'GET') return new Response('OK', { status: 200 })
@@ -71,13 +113,6 @@ Deno.serve(async (req) => {
   const numMedia = parseInt(params.get('NumMedia') || '0', 10)
   const timestamp = new Date().toISOString()
 
-  if (numMedia === 0) {
-    return new Response('<Response></Response>', {
-      status: 200,
-      headers: { 'Content-Type': 'text/xml' },
-    })
-  }
-
   // Identifica o usuário pelo número Twilio de destino (To)
   // O From (remetente) é salvo como sender_phone no registro de mídia
   const { data: activeConnection } = await supabase
@@ -88,6 +123,27 @@ Deno.serve(async (req) => {
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle()
+
+  if (numMedia === 0) {
+    // Mensagem de texto sem mídia — orienta o usuário
+    const body = params.get('Body') || ''
+    if (body.trim() && activeConnection === undefined) {
+      // Só responde se não for o join do sandbox
+      const lowerBody = body.toLowerCase().trim()
+      const isSandboxJoin = lowerBody.startsWith('join ')
+      if (!isSandboxJoin) {
+        await sendTwilioReply(
+          from,
+          to,
+          '📁 Olá! Para usar o Swiftwapdrive, envie arquivos (fotos, vídeos, áudios ou documentos) diretamente nesta conversa e eles serão salvos automaticamente no Google Drive.'
+        )
+      }
+    }
+    return new Response('<Response></Response>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/xml' },
+    })
+  }
 
   if (!activeConnection) {
     console.error(`[WEBHOOK] Nenhuma conexão para número: ${to}`)
@@ -114,9 +170,41 @@ Deno.serve(async (req) => {
 
   // Processa cada mídia
   for (let i = 0; i < numMedia; i++) {
-    const mediaUrl = params.get(`MediaUrl${i}`)
+    const mediaUrl = params.get(`MediaUrl${i}`) || ''
     const mimeType = params.get(`MediaContentType${i}`) || 'application/octet-stream'
+
     if (!mediaUrl) continue
+
+    // Verifica se a URL indica erro de tamanho (Twilio retorna URL vazia ou com erro)
+    // O erro 11751 faz o Twilio não enviar MediaUrl, mas envia NumMedia > 0
+    // Nesse caso, registra erro e avisa o remetente
+    if (mediaUrl.includes('error') || mediaUrl === '') {
+      console.error(`[WEBHOOK] Mídia ${i} com erro de tamanho`)
+      
+      const errorMessage = getFileSizeErrorMessage(mimeType)
+      await sendTwilioReply(from, to, errorMessage)
+      
+      // Registra tentativa no banco para aparecer no dashboard
+      if (activeConnection) {
+        await supabase.from('media_files').insert({
+          user_id: activeConnection.user_id,
+          whatsapp_connection_id: activeConnection.id,
+          whatsapp_media_id: `error_${messageSid}_${i}`,
+          whatsapp_message_id: `${messageSid}_media${i}`,
+          sender_phone: from.replace('whatsapp:', ''),
+          sender_name: profileName,
+          file_name: `arquivo_rejeitado_${i}`,
+          file_type: mimeType.startsWith('video/') ? 'video' :
+                     mimeType.startsWith('image/') ? 'image' :
+                     mimeType.startsWith('audio/') ? 'audio' : 'document',
+          mime_type: mimeType,
+          status: 'failed',
+          error_message: 'Arquivo rejeitado: tamanho excede o limite permitido (vídeos: 16 MB, imagens: 5 MB)',
+          received_at: timestamp,
+        })
+      }
+      continue
+    }
 
     const mediaId = `${messageSid}_media${i}`
 
