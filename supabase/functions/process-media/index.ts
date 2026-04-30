@@ -214,6 +214,25 @@ async function ensureDrivePath(
   return parentId;
 }
 
+async function acquireUserLock(userId: string): Promise<void> {
+  // Converte userId (UUID) para um número inteiro para o advisory lock
+  const lockKey = Math.abs(
+    userId.split('-').join('').slice(0, 8).split('').reduce((acc, c) => {
+      return ((acc << 5) - acc + c.charCodeAt(0)) | 0
+    }, 0)
+  )
+  await supabase.rpc('pg_advisory_lock', { lock_key: lockKey })
+}
+
+async function releaseUserLock(userId: string): Promise<void> {
+  const lockKey = Math.abs(
+    userId.split('-').join('').slice(0, 8).split('').reduce((acc, c) => {
+      return ((acc << 5) - acc + c.charCodeAt(0)) | 0
+    }, 0)
+  )
+  await supabase.rpc('pg_advisory_unlock', { lock_key: lockKey })
+}
+
 // Busca ID de pasta no cache do banco
 async function getCachedFolderId(
   userId: string,
@@ -599,17 +618,25 @@ Deno.serve(async (req) => {
       ? (accountRow.id as string) 
       : 'legacy'
     
-    let targetFolderId = await getCachedFolderId(userId, googleAccountId, targetPath)
-    
-    if (!targetFolderId) {
-      targetFolderId = await ensureDrivePath(
-        googleToken!,
-        targetPath,
-        userId,
-        googleAccountId,
-      )
-      // Nota: o cacheFolderId do caminho final já é feito dentro
-      // do ensureDrivePath no último nível — não precisa chamar aqui
+    // Adquire lock exclusivo por usuário para evitar criação paralela de pastas
+    await acquireUserLock(userId)
+    let targetFolderId: string
+    try {
+      // Busca no cache dentro do lock (outro processo pode ter criado enquanto aguardava)
+      const cachedAfterLock = await getCachedFolderId(userId, googleAccountId, targetPath)
+      if (cachedAfterLock) {
+        targetFolderId = cachedAfterLock
+      } else {
+        targetFolderId = await ensureDrivePath(
+          googleToken!,
+          targetPath,
+          userId,
+          googleAccountId,
+        )
+      }
+    } finally {
+      // Sempre libera o lock, mesmo em caso de erro
+      await releaseUserLock(userId)
     }
 
     const { fileId: driveFileId, webViewLink } = await uploadToGoogleDrive(
