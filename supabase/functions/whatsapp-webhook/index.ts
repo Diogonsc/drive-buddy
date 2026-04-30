@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
   if (numMedia === 0) {
     // Mensagem de texto sem mídia — orienta o usuário
     const body = params.get('Body') || ''
-    if (body.trim() && activeConnection === undefined) {
+    if (body.trim() && !activeConnection) {
       // Só responde se não for o join do sandbox
       const lowerBody = body.toLowerCase().trim()
       const isSandboxJoin = lowerBody.startsWith('join ')
@@ -173,12 +173,10 @@ Deno.serve(async (req) => {
     const mediaUrl = params.get(`MediaUrl${i}`) || ''
     const mimeType = params.get(`MediaContentType${i}`) || 'application/octet-stream'
 
-    if (!mediaUrl) continue
-
     // Verifica se a URL indica erro de tamanho (Twilio retorna URL vazia ou com erro)
     // O erro 11751 faz o Twilio não enviar MediaUrl, mas envia NumMedia > 0
     // Nesse caso, registra erro e avisa o remetente
-    if (mediaUrl.includes('error') || mediaUrl === '') {
+    if (!mediaUrl || mediaUrl.includes('error')) {
       console.error(`[WEBHOOK] Mídia ${i} com erro de tamanho`)
       
       const errorMessage = getFileSizeErrorMessage(mimeType)
