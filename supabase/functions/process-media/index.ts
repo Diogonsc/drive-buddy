@@ -43,13 +43,14 @@ function buildFolderPath(
   const typeFolder = folderNameByType(fileType);
 
   const structures: Record<string, string[]> = {
+    sender_date_type: [senderIdentifier, yyyy, `${mm}-${dd}`, typeFolder],
     date_type: [yyyy, `${mm}-${dd}`, senderIdentifier, typeFolder],
     type_date: [typeFolder, yyyy, `${mm}-${dd}`, senderIdentifier],
     type: [senderIdentifier, typeFolder],
     date: [yyyy, `${mm}-${dd}`, senderIdentifier],
   };
 
-  const parts = structures[folderStructure] || structures.date_type;
+  const parts = structures[folderStructure] || structures.sender_date_type;
   const root = normalizeFolder(baseFolder).replace(/\/$/, "");
   return `${root}/${parts.join("/")}`;
 }
@@ -486,7 +487,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const folderStructure = (settings?.folder_structure as string | null) || "date_type";
+    const folderStructure = (settings?.folder_structure as string | null) || "sender_date_type";
     const baseFolderPath =
       (accountRow.root_folder_path as string | null) ||
       (accountRow.google_root_folder as string | null) ||
