@@ -97,11 +97,11 @@ async function downloadTwilioMedia(
   return { buffer, contentType }
 }
 
-async function ensureDriveFolder(
+async function findDriveFolder(
   token: string,
   folderName: string,
   parentId: string,
-): Promise<string> {
+): Promise<string | null> {
   const escapedName = folderName.replace(/'/g, "\\'");
   const query = `name='${escapedName}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
   const listRes = await fetch(
@@ -109,13 +109,28 @@ async function ensureDriveFolder(
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
-  if (listRes.ok) {
-    const listJson = await listRes.json();
-    if (listJson?.files?.[0]?.id) {
-      return listJson.files[0].id;
-    }
-  }
+  if (!listRes.ok) return null;
+  const listJson = await listRes.json();
+  return listJson?.files?.[0]?.id ?? null;
+}
 
+async function ensureDriveFolder(
+  token: string,
+  folderName: string,
+  parentId: string,
+): Promise<string> {
+  // 1. Busca pasta existente
+  const existing = await findDriveFolder(token, folderName, parentId);
+  if (existing) return existing;
+
+  // 2. Delay aleatório pequeno para reduzir colisões em processamento paralelo
+  await new Promise(r => setTimeout(r, Math.floor(Math.random() * 300) + 100));
+
+  // 3. Busca novamente após delay (outra instância pode ter criado)
+  const existingAfterDelay = await findDriveFolder(token, folderName, parentId);
+  if (existingAfterDelay) return existingAfterDelay;
+
+  // 4. Tenta criar
   const createRes = await fetch(
     "https://www.googleapis.com/drive/v3/files?fields=id",
     {
@@ -133,8 +148,21 @@ async function ensureDriveFolder(
   );
 
   const createJson = await createRes.json();
-  if (!createRes.ok || !createJson?.id) {
-    throw new Error("Erro ao criar pasta no Google Drive");
+
+  // 5. Se criação falhou por conflito (outra instância criou antes), busca novamente
+  if (!createRes.ok) {
+    if (createRes.status === 409 || createRes.status === 403) {
+      const retryFind = await findDriveFolder(token, folderName, parentId);
+      if (retryFind) return retryFind;
+    }
+    throw new Error(`Erro ao criar pasta no Google Drive: ${createJson?.error?.message || createRes.status}`);
+  }
+
+  if (!createJson?.id) {
+    // Ultimo fallback: busca a pasta que pode ter sido criada
+    const lastFind = await findDriveFolder(token, folderName, parentId);
+    if (lastFind) return lastFind;
+    throw new Error("Erro ao criar pasta no Google Drive: ID não retornado");
   }
 
   return createJson.id as string;
@@ -148,7 +176,21 @@ async function ensureDrivePath(token: string, fullPath: string): Promise<string>
 
   let parentId = "root";
   for (const part of parts) {
-    parentId = await ensureDriveFolder(token, part, parentId);
+    // Retry até 3 vezes por nível de pasta para lidar com falhas transitórias
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        parentId = await ensureDriveFolder(token, part, parentId);
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err as Error;
+        console.warn(`[DRIVE] Tentativa ${attempt + 1} falhou para pasta "${part}":`, err);
+        // Espera antes de tentar novamente
+        await new Promise(r => setTimeout(r, (attempt + 1) * 500));
+      }
+    }
+    if (lastError) throw lastError;
   }
   return parentId;
 }
