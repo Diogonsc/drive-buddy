@@ -108,7 +108,8 @@ export function WhatsAppConnectButton({
           </p>
         )}
         <p className="text-xs text-muted-foreground pl-7">
-          Mídias recebidas neste número serão salvas automaticamente no Google Drive.
+          Mídias recebidas neste número exclusivo são salvas automaticamente
+          no seu Google Drive — isoladas e seguras.
         </p>
       </div>
     )
@@ -127,7 +128,8 @@ export function WhatsAppConnectButton({
           </p>
         )}
         <p className="text-xs text-muted-foreground pl-7">
-          Compartilhe este número com seus clientes para receber mídias automaticamente.
+          Este é o seu número exclusivo. Compartilhe com seus clientes para
+          receber mídias automaticamente no seu Google Drive.
         </p>
       </div>
     )
@@ -157,15 +159,15 @@ export function WhatsAppConnectButton({
         <div className="space-y-2 text-muted-foreground">
           <div className="flex items-center gap-2">
             <FaWhatsapp className="h-4 w-4 text-primary shrink-0" />
-            <span>Informe seu número WhatsApp Business abaixo</span>
+            <span>Informe seu número WhatsApp Business atual</span>
           </div>
           <div className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-primary shrink-0" />
-            <span>A plataforma configura um número dedicado para receber suas mídias</span>
+            <span>A plataforma provisiona um número exclusivo para sua conta</span>
           </div>
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary shrink-0" />
-            <span>Tudo automático — sem configurações técnicas</span>
+            <span>Conta isolada — seus dados nunca se misturam com outros clientes</span>
           </div>
         </div>
       </div>

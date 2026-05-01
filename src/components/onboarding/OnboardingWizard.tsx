@@ -130,9 +130,10 @@ export function OnboardingWizard({
                 <div className="rounded-lg border bg-muted/20 p-4">
                   <h3 className="font-medium text-sm mb-1">Como funciona</h3>
                   <p className="text-sm text-muted-foreground">
-                    A Swiftwapdrive vai configurar um número WhatsApp dedicado para você.
-                    Quando seus clientes enviarem mídias para esse número, elas serão
-                    salvas automaticamente no seu Google Drive — sem nenhuma ação manual.
+                    A Swiftwapdrive vai provisionar um número WhatsApp exclusivo para
+                    sua conta, com subaccount isolada. Quando seus clientes enviarem
+                    mídias para esse número, elas serão salvas automaticamente no seu
+                    Google Drive — sem nenhuma ação manual.
                   </p>
                 </div>
                 <WhatsAppConnectButton
@@ -172,18 +173,18 @@ export function OnboardingWizard({
             {currentStep === 2 && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Envie uma foto, vídeo, áudio ou documento para o número do
-                  WhatsApp Business conectado. O sistema processará
-                  automaticamente e salvará no Google Drive.
+                  Envie uma foto, vídeo, áudio ou documento para o número exclusivo
+                  atribuído à sua conta. O sistema processará automaticamente e
+                  salvará no seu Google Drive organizado por remetente e data.
                 </p>
 
                 <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-6 text-center">
                   <Send className="h-8 w-8 text-primary mx-auto mb-3" />
                   <p className="text-sm font-medium text-foreground">
-                    Envie uma mídia pelo WhatsApp
+                    Envie uma mídia para o seu número exclusivo
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    O status mudará para "Conectado" após o processamento
+                    Arquivos serão salvos em: SwiftWapDrive / [Remetente] / [Data] / [Tipo]
                   </p>
                 </div>
 

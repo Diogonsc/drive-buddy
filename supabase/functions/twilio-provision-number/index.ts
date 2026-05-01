@@ -200,39 +200,35 @@ Deno.serve(async (req) => {
     }
 
     // Normaliza o número do cliente
-    const normalizedPhone = customerPhone.startsWith('+') ? customerPhone : `+${customerPhone}`
+    const normalizedPhone = customerPhone.startsWith('+')
+      ? customerPhone
+      : `+${customerPhone}`
 
     // Verifica se já existe conexão ativa para este usuário
     const { data: existing } = await supabase
       .from('whatsapp_connections')
-      .select('id, status, twilio_whatsapp_number')
+      .select('id, status, twilio_whatsapp_number, twilio_subaccount_sid')
       .eq('user_id', user.id)
       .in('status', ['connected', 'pending'])
       .maybeSingle()
 
-    if (existing) {
+    if (existing?.twilio_subaccount_sid) {
+      // Já tem subaccount — retorna sem criar nova
       return new Response(JSON.stringify({
         success: true,
         message: 'Conexão já existe',
-        twilio_number: existing.twilio_whatsapp_number,
+        twilio_number: existing.twilio_whatsapp_number?.replace('whatsapp:', ''),
+        twilio_whatsapp_number: existing.twilio_whatsapp_number,
         status: existing.status,
+        mode: 'subaccount',
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const envTwilioWhatsappNumber = Deno.env.get('TWILIO_WHATSAPP_NUMBER')
-    if (!envTwilioWhatsappNumber) {
-      throw new Error('TWILIO_WHATSAPP_NUMBER não configurado')
-    }
-
-    const twilioWhatsappNumber = envTwilioWhatsappNumber.startsWith('whatsapp:')
-      ? envTwilioWhatsappNumber
-      : `whatsapp:${envTwilioWhatsappNumber}`
-    const twilioNumber = twilioWhatsappNumber.replace(/^whatsapp:/, '')
-
-    const { data: connection, error: upsertError } = await supabase
+    // Cria registro pending imediatamente para feedback visual
+    const { data: connection, error: insertError } = await supabase
       .from('whatsapp_connections')
       .upsert({
         user_id: user.id,
@@ -240,34 +236,81 @@ Deno.serve(async (req) => {
         phone_number_id: normalizedPhone,
         customer_phone_number: normalizedPhone,
         provider: 'twilio',
-        twilio_whatsapp_number: twilioWhatsappNumber,
-        twilio_subaccount_sid: null,
-        twilio_subaccount_auth_token: null,
-        twilio_number_sid: null,
-        status: 'connected',
-        connected_at: new Date().toISOString(),
+        status: 'pending',
       }, { onConflict: 'user_id,phone_number_id' })
       .select()
       .single()
 
-    if (upsertError || !connection) {
-      console.error('[PROVISION] Upsert error:', JSON.stringify(upsertError))
-      throw new Error(`Falha ao criar/atualizar conexão: ${upsertError?.message || 'erro desconhecido'}`)
+    if (insertError || !connection) {
+      console.error('[PROVISION] Insert error:', JSON.stringify(insertError))
+      throw new Error(`Falha ao criar registro: ${insertError?.message || 'erro desconhecido'}`)
     }
 
-    console.log(`[PROVISION] Conectado em modo shared para user ${user.id}`)
+    const connectionId = connection.id as string
 
-    return new Response(JSON.stringify({
-      success: true,
-      twilio_number: twilioNumber,
-      twilio_whatsapp_number: twilioWhatsappNumber,
-      status: 'connected',
-      mode: 'shared',
-      message: 'WhatsApp conectado com sucesso!',
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    try {
+      // PASSO 1: Criar subaccount dedicada para este cliente
+      console.log(`[PROVISION] Criando subaccount para user ${user.id}`)
+      const friendlyName = `Swiftwapdrive - ${user.email} - ${normalizedPhone}`
+      const { sid: subSid, authToken: subToken } = await createSubaccount(friendlyName)
+
+      // PASSO 2: Buscar número disponível no país do cliente
+      console.log(`[PROVISION] Buscando número em ${countryCode}`)
+      const availableNumber = await searchAvailableNumber(countryCode)
+
+      // PASSO 3: Comprar número na subaccount do cliente
+      console.log(`[PROVISION] Comprando número ${availableNumber}`)
+      const { sid: numberSid, phoneNumber: purchasedNumber } = await purchaseNumber(
+        availableNumber,
+        subSid,
+        subToken,
+      )
+
+      // PASSO 4: Registrar como WhatsApp sender
+      console.log(`[PROVISION] Registrando WhatsApp sender`)
+      await registerWhatsAppSender(purchasedNumber, subSid, subToken)
+
+      // PASSO 5: Configurar webhook apontando para o webhook central
+      console.log(`[PROVISION] Configurando webhook`)
+      await configureWebhook(numberSid, subSid, subToken)
+
+      const twilioWhatsappNumber = `whatsapp:${purchasedNumber}`
+
+      // Salvar credenciais da subaccount no banco
+      await supabase
+        .from('whatsapp_connections')
+        .update({
+          twilio_subaccount_sid: subSid,
+          twilio_subaccount_auth_token: subToken,
+          twilio_whatsapp_number: twilioWhatsappNumber,
+          twilio_number_sid: numberSid,
+          status: 'connected',
+          connected_at: new Date().toISOString(),
+        })
+        .eq('id', connectionId)
+
+      console.log(`[PROVISION] Subaccount provisionada com sucesso para user ${user.id}`)
+
+      return new Response(JSON.stringify({
+        success: true,
+        twilio_number: purchasedNumber,
+        twilio_whatsapp_number: twilioWhatsappNumber,
+        subaccount_sid: subSid,
+        status: 'connected',
+        mode: 'subaccount',
+        message: `Número ${purchasedNumber} provisionado com sucesso!`,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    } catch (provisionError) {
+      // Rollback: marcar conexão como erro
+      await supabase
+        .from('whatsapp_connections')
+        .update({ status: 'error' })
+        .eq('id', connectionId)
+      throw provisionError
+    }
   } catch (err) {
     console.error('[PROVISION] Erro:', err)
     return new Response(JSON.stringify({

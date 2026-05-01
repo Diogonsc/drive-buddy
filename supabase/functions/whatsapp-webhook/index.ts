@@ -56,9 +56,13 @@ async function sendTwilioReply(
   to: string,   // número de quem enviou (From)
   from: string, // número Twilio da plataforma (To)
   message: string,
+  subaccountSid?: string | null,
+  subaccountAuthToken?: string | null,
 ): Promise<void> {
-  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
+  // Usa credenciais da subaccount do cliente se disponíveis (modelo profissional)
+  // Fallback para credenciais globais (modelo sandbox/teste)
+  const accountSid = subaccountSid || Deno.env.get('TWILIO_ACCOUNT_SID')
+  const authToken = subaccountAuthToken || Deno.env.get('TWILIO_AUTH_TOKEN')
   if (!accountSid || !authToken) return
 
   const credentials = btoa(`${accountSid}:${authToken}`)
@@ -135,7 +139,9 @@ Deno.serve(async (req) => {
         await sendTwilioReply(
           from,
           to,
-          '📁 Olá! Para usar o Swiftwapdrive, envie arquivos (fotos, vídeos, áudios ou documentos) diretamente nesta conversa e eles serão salvos automaticamente no Google Drive.'
+          '📁 Olá! Para usar o Swiftwapdrive, envie arquivos (fotos, vídeos, áudios ou documentos) diretamente nesta conversa e eles serão salvos automaticamente no Google Drive.',
+          activeConnection?.twilio_subaccount_sid as string | null,
+          activeConnection?.twilio_subaccount_auth_token as string | null,
         )
       }
     }
@@ -180,7 +186,13 @@ Deno.serve(async (req) => {
       console.error(`[WEBHOOK] Mídia ${i} com erro de tamanho`)
       
       const errorMessage = getFileSizeErrorMessage(mimeType)
-      await sendTwilioReply(from, to, errorMessage)
+      await sendTwilioReply(
+        from,
+        to,
+        errorMessage,
+        activeConnection?.twilio_subaccount_sid as string | null,
+        activeConnection?.twilio_subaccount_auth_token as string | null,
+      )
       
       // Registra tentativa no banco para aparecer no dashboard
       if (activeConnection) {
