@@ -25,14 +25,16 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchAllLogs, type SyncLogRow } from "@/services/admin/adminQueries";
+import type { MediaType } from "@/components/ui/ActivityLog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -48,8 +50,57 @@ import {
   ChevronRight,
   Shield,
   ScrollText,
+  Image,
+  Video,
+  FileAudio,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
+
+const MediaIcon = ({ type }: { type: MediaType }) => {
+  const iconClass = "h-4 w-4";
+  switch (type) {
+    case "image":
+      return <Image className={cn(iconClass, "text-blue-500")} />;
+    case "video":
+      return <Video className={cn(iconClass, "text-purple-500")} />;
+    case "audio":
+      return <FileAudio className={cn(iconClass, "text-orange-500")} />;
+    case "document":
+      return <FileText className={cn(iconClass, "text-emerald-500")} />;
+    default:
+      return <FileText className={iconClass} />;
+  }
+};
+
+const mapMediaType = (fileType: string): MediaType => {
+  if (fileType === "image" || fileType === "video" || fileType === "audio" || fileType === "document") {
+    return fileType;
+  }
+  return "document";
+};
+
+/** Tipo de mídia exibível como em /logs — inferido de metadata quando existir. */
+function inferMediaTypeFromSyncLog(row: SyncLogRow): MediaType {
+  const meta = row.metadata;
+  if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+    const ft = meta.file_type ?? meta.media_type;
+    if (typeof ft === "string") return mapMediaType(ft);
+    const fp = meta.folder_path;
+    if (typeof fp === "string") {
+      const folderToType: Record<string, MediaType> = {
+        Imagens: "image",
+        Videos: "video",
+        Audios: "audio",
+        Documentos: "document",
+      };
+      for (const seg of fp.split("/")) {
+        if (folderToType[seg]) return folderToType[seg];
+      }
+    }
+  }
+  return "document";
+};
 
 const statusOptions = [
   { value: "all", label: "Todos" },
@@ -277,9 +328,10 @@ export default function AdminLogs() {
               ) : (
                 <>
                   <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <Table className="w-full min-w-[760px]">
+                    <Table className="w-full min-w-[820px]">
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-12">Tipo</TableHead>
                           <TableHead>Data</TableHead>
                           <TableHead>user_id</TableHead>
                           <TableHead>action</TableHead>
@@ -291,6 +343,11 @@ export default function AdminLogs() {
                       <TableBody>
                         {paginated.map((r) => (
                           <TableRow key={r.id}>
+                            <TableCell>
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+                                <MediaIcon type={inferMediaTypeFromSyncLog(r)} />
+                              </div>
+                            </TableCell>
                             <TableCell className="text-muted-foreground whitespace-nowrap">
                               {format(new Date(r.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                             </TableCell>
@@ -350,55 +407,120 @@ export default function AdminLogs() {
         </AdminSection>
       </div>
 
-      {/* Dialog de Detalhes */}
-      <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
-        <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full">
-          <DialogHeader>
-            <DialogTitle>Detalhe do log</DialogTitle>
-            <DialogDescription>metadata em JSON (somente leitura).</DialogDescription>
-          </DialogHeader>
+      {/* Painel lateral de detalhes (mesmo padrão da tela /logs) */}
+      <Sheet open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {detail && <MediaIcon type={inferMediaTypeFromSyncLog(detail)} />}
+              Detalhe do log
+            </SheetTitle>
+            <SheetDescription>
+              Registro em sync_logs — auditoria e suporte. Apenas leitura.
+            </SheetDescription>
+          </SheetHeader>
+
           {detail && (
-            <div className="space-y-4 font-mono text-sm">
-              <div>
-                <p className="text-muted-foreground">id</p>
-                <p className="break-all">{detail.id}</p>
+            <div className="mt-6 space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">status</span>
+                {statusBadge(detail.status)}
               </div>
-              <div>
-                <p className="text-muted-foreground">created_at</p>
-                <p>
-                  {format(new Date(detail.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+
+              <Separator />
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">Tipo</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <MediaIcon type={inferMediaTypeFromSyncLog(detail)} />
+                  </div>
+                  <span className="text-sm font-medium capitalize">
+                    {inferMediaTypeFromSyncLog(detail)}
+                  </span>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Identificação
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground shrink-0">id</span>
+                    <span className="font-mono text-xs text-right break-all">{detail.id}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground shrink-0">created_at</span>
+                    <span className="text-right">
+                      {format(new Date(detail.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground shrink-0">user_id</span>
+                    <span className="font-mono text-xs text-right break-all">{detail.user_id}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground shrink-0">media_file_id</span>
+                    <span className="font-mono text-xs text-right break-all">
+                      {detail.media_file_id ?? "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Evento
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground shrink-0">action</span>
+                    <span className="font-medium text-right break-all">{detail.action}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground shrink-0">source</span>
+                    <span className="font-mono text-xs text-right break-all">
+                      {detail.source ?? "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  message
+                </p>
+                <p className="text-sm break-words rounded-lg bg-muted/50 p-3">
+                  {detail.message ?? "—"}
                 </p>
               </div>
-              <div>
-                <p className="text-muted-foreground">user_id</p>
-                <p className="break-all">{detail.user_id}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">action</p>
-                <p>{detail.action}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">status</p>
-                <p>{detail.status}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">message</p>
-                <p className="break-words">{detail.message ?? "—"}</p>
-              </div>
+
               {detail.metadata != null && Object.keys(detail.metadata).length > 0 && (
-                <div>
-                  <p className="text-muted-foreground">metadata</p>
-                  <ScrollArea className="h-40 rounded-md border p-2">
-                    <pre className="text-xs">
-                      {JSON.stringify(detail.metadata, null, 2)}
-                    </pre>
-                  </ScrollArea>
-                </div>
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      metadata (JSON)
+                    </p>
+                    <ScrollArea className="h-48 rounded-md border p-3">
+                      <pre className="font-mono text-xs whitespace-pre-wrap break-all">
+                        {JSON.stringify(detail.metadata, null, 2)}
+                      </pre>
+                    </ScrollArea>
+                  </div>
+                </>
               )}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </AppLayout>
   );
 }
