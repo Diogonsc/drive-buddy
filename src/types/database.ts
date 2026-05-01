@@ -155,51 +155,78 @@ export interface Database {
           id: string
           user_id: string
           whatsapp_media_id: string
-          media_type: MediaType
-          mime_type: string
-          file_name: string | null
-          file_size: number | null
-          google_drive_file_id: string | null
-          google_drive_url: string | null
-          sync_status: SyncStatus
-          error_message: string | null
+          whatsapp_message_id: string | null
+          whatsapp_connection_id: string | null
           sender_phone: string | null
+          sender_name: string | null
+          file_name: string | null
+          file_type: MediaType
+          file_size_bytes: number | null
+          mime_type: string
+          google_drive_file_id: string | null
+          google_drive_folder_id: string | null
+          google_drive_url: string | null
+          google_drive_account_id: string | null
+          status: SyncStatus
+          error_message: string | null
+          retry_count: number
+          is_permanent_failure: boolean
+          last_attempt_at: string | null
           received_at: string
-          synced_at: string | null
+          processed_at: string | null
+          uploaded_at: string | null
           created_at: string
         }
         Insert: {
           id?: string
           user_id: string
           whatsapp_media_id: string
-          media_type: MediaType
-          mime_type: string
-          file_name?: string | null
-          file_size?: number | null
-          google_drive_file_id?: string | null
-          google_drive_url?: string | null
-          sync_status?: SyncStatus
-          error_message?: string | null
+          whatsapp_message_id?: string | null
+          whatsapp_connection_id?: string | null
           sender_phone?: string | null
+          sender_name?: string | null
+          file_name?: string | null
+          file_type: MediaType
+          file_size_bytes?: number | null
+          mime_type: string
+          google_drive_file_id?: string | null
+          google_drive_folder_id?: string | null
+          google_drive_url?: string | null
+          google_drive_account_id?: string | null
+          status?: SyncStatus
+          error_message?: string | null
+          retry_count?: number
+          is_permanent_failure?: boolean
+          last_attempt_at?: string | null
           received_at?: string
-          synced_at?: string | null
+          processed_at?: string | null
+          uploaded_at?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           user_id?: string
           whatsapp_media_id?: string
-          media_type?: MediaType
-          mime_type?: string
-          file_name?: string | null
-          file_size?: number | null
-          google_drive_file_id?: string | null
-          google_drive_url?: string | null
-          sync_status?: SyncStatus
-          error_message?: string | null
+          whatsapp_message_id?: string | null
+          whatsapp_connection_id?: string | null
           sender_phone?: string | null
+          sender_name?: string | null
+          file_name?: string | null
+          file_type?: MediaType
+          file_size_bytes?: number | null
+          mime_type?: string
+          google_drive_file_id?: string | null
+          google_drive_folder_id?: string | null
+          google_drive_url?: string | null
+          google_drive_account_id?: string | null
+          status?: SyncStatus
+          error_message?: string | null
+          retry_count?: number
+          is_permanent_failure?: boolean
+          last_attempt_at?: string | null
           received_at?: string
-          synced_at?: string | null
+          processed_at?: string | null
+          uploaded_at?: string | null
           created_at?: string
         }
       }
