@@ -36,18 +36,18 @@ export default function Files() {
         // Buscar contagem de arquivos por tipo
         const { data: filesData, error: filesError } = await supabase
           .from('media_files')
-          .select('file_type')
+          .select('media_type')
           .eq('user_id', user.id)
-          .eq('status', 'completed');
+          .eq('sync_status', 'completed');
 
         if (filesError) throw filesError;
 
         // Contar por tipo
         const counts = {
-          image: filesData?.filter(f => f.file_type === 'image').length || 0,
-          video: filesData?.filter(f => f.file_type === 'video').length || 0,
-          audio: filesData?.filter(f => f.file_type === 'audio').length || 0,
-          document: filesData?.filter(f => f.file_type === 'document').length || 0,
+          image: filesData?.filter(f => f.media_type === 'image').length || 0,
+          video: filesData?.filter(f => f.media_type === 'video').length || 0,
+          audio: filesData?.filter(f => f.media_type === 'audio').length || 0,
+          document: filesData?.filter(f => f.media_type === 'document').length || 0,
         };
 
         setFolderStats([
@@ -87,7 +87,7 @@ export default function Files() {
             .from('media_files')
             .select('google_drive_folder_id, google_drive_url')
             .eq('user_id', user.id)
-            .eq('status', 'completed')
+            .eq('sync_status', 'completed')
             .not('google_drive_folder_id', 'is', null)
             .order('processed_at', { ascending: false })
             .limit(1)

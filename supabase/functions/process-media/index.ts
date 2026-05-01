@@ -443,8 +443,9 @@ async function enforcePlanBeforeProcessing(userId: string) {
   const usedBefore = Number(sub.files_used_current_month ?? 0)
   const planName = sub.plan_name || 'Profissional'
 
-  // Plano Essencial sempre permite excedente (cobrado separado)
-  return { limit, usedBefore, overageEnabled: true, planName }
+  // overage_enabled respeita o banco — fallback true para manter comportamento atual
+  const overageEnabled = sub.overage_enabled ?? true
+  return { limit, usedBefore, overageEnabled, planName }
 }
 
 async function registerPlanUsage(
@@ -454,10 +455,8 @@ async function registerPlanUsage(
   limit: number | null,
   planName?: string,
 ) {
-  await supabase
-    .from('subscriptions')
-    .update({ files_used_current_month: usedBefore + 1 })
-    .eq('user_id', userId)
+  // Incremento atômico via RPC — evita race condition em webhooks paralelos
+  await supabase.rpc('increment_files_used', { p_user_id: userId })
 
   if (!limit || limit <= 0) return
 
@@ -466,7 +465,7 @@ async function registerPlanUsage(
   // Avisos de uso: 80%, 100% (excedente), 150%
   const markers = [
     { ratio: 0.8, label: '80%' },
-    { ratio: 1.0, label: '100% — excedente ativado (R$ 0,10/mídia)' },
+    { ratio: 1.0, label: '100% — excedente ativado (R$ 0,25/mídia)' },
     { ratio: 1.5, label: '150%' },
   ]
 

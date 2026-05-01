@@ -6,9 +6,14 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type AppRole = 'admin' | 'moderator' | 'user'
+// Enums do banco — gerados de pg_enum em 2025-05-01
+export type AppRole = 'admin' | 'user'
+export type ConnectionStatus = 'connected' | 'disconnected' | 'pending' | 'error'
+export type HealthCheckType = 'whatsapp_token' | 'whatsapp_webhook' | 'google_token' | 'google_api' | 'media_processing'
+export type HealthStatus = 'healthy' | 'warning' | 'critical' | 'unknown'
+export type MediaType = 'image' | 'video' | 'audio' | 'document'
+export type PlanType = 'free' | 'starter' | 'pro' | 'business' | 'professional' | 'scale'
 export type SyncStatus = 'pending' | 'processing' | 'completed' | 'failed'
-export type MediaType = 'image' | 'video' | 'audio' | 'document' | 'sticker'
 
 export interface Database {
   public: {
@@ -204,8 +209,10 @@ export interface Database {
           user_id: string
           media_file_id: string | null
           action: string
-          status: string
-          details: Json | null
+          status: SyncStatus
+          message: string | null
+          metadata: Json | null
+          source: string | null
           created_at: string
         }
         Insert: {
@@ -213,8 +220,10 @@ export interface Database {
           user_id: string
           media_file_id?: string | null
           action: string
-          status: string
-          details?: Json | null
+          status: SyncStatus
+          message?: string | null
+          metadata?: Json | null
+          source?: string | null
           created_at?: string
         }
         Update: {
@@ -222,9 +231,49 @@ export interface Database {
           user_id?: string
           media_file_id?: string | null
           action?: string
-          status?: string
-          details?: Json | null
+          status?: SyncStatus
+          message?: string | null
+          metadata?: Json | null
+          source?: string | null
           created_at?: string
+        }
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          plan: PlanType
+          plan_name: string | null
+          plan_price: number | null
+          monthly_file_limit: number | null
+          files_used_current_month: number | null
+          overage_enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan?: PlanType
+          plan_name?: string | null
+          plan_price?: number | null
+          monthly_file_limit?: number | null
+          files_used_current_month?: number | null
+          overage_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan?: PlanType
+          plan_name?: string | null
+          plan_price?: number | null
+          monthly_file_limit?: number | null
+          files_used_current_month?: number | null
+          overage_enabled?: boolean
+          created_at?: string
+          updated_at?: string
         }
       }
     }
@@ -235,6 +284,12 @@ export interface Database {
           _role: AppRole
         }
         Returns: boolean
+      }
+      increment_files_used: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: void
       }
     }
   }

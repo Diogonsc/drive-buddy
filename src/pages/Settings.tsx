@@ -78,7 +78,6 @@ export default function Settings() {
     whatsappConnections,
     googleAccounts,
     routingRules,
-    refetch: refetchConnections,
   } = useConnections(user?.id);
   const [generalConfig, setGeneralConfig] = useState<GeneralConfigState>({
     autoSyncEnabled: true,
@@ -129,7 +128,6 @@ export default function Settings() {
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle(),
-        refetchConnections(),
       ]);
 
       if (subscriptionData) {
@@ -139,7 +137,7 @@ export default function Settings() {
           plan_price: subscriptionData.plan_price ?? 9700,
           monthly_file_limit: subscriptionData.monthly_file_limit ?? 200,
           files_used_current_month: subscriptionData.files_used_current_month ?? 0,
-          overage_enabled: true,
+          overage_enabled: subscriptionData.overage_enabled ?? false,
         });
       }
 
@@ -160,11 +158,35 @@ export default function Settings() {
       console.error(error);
       toast.error("Erro ao carregar configurações");
     }
-  }, [refetchConnections, user]);
+  }, [user]);
 
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`subscriptions:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "subscriptions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadConfig();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadConfig]);
 
   useEffect(() => {
     setFolderDrafts(
