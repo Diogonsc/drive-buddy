@@ -173,13 +173,14 @@ export default function AdminSettings() {
         {/* 3. Roles e Permissões */}
         <AdminSection
           title="Roles e Permissões"
-          description="Fonte: user_roles (apenas user_id e role visíveis)"
+          description="Fonte: user_roles; e-mail exibido a partir de google_drive_accounts quando o usuário conectou o Google Drive"
         >
           <Alert variant="default" className="border-muted mb-4">
             <Info className="h-4 w-4" />
             <AlertDescription>
               Permissões são controladas exclusivamente por RLS no backend.
-              Emails não disponíveis (auth.users não acessível).
+              O e-mail mostrado é o da conta Google (Drive), não o de auth.users.
+              Usuários sem conta Google vinculada aparecem sem e-mail.
             </AlertDescription>
           </Alert>
 
@@ -207,7 +208,7 @@ export default function AdminSettings() {
                             {row.user_id.slice(0, 8)}…
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            — (não disponível)
+                            {row.account_email?.trim() || "—"}
                           </TableCell>
                           <TableCell>
                             <Badge variant={row.role === "admin" ? "default" : "secondary"}>

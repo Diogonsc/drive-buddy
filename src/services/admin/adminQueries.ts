@@ -35,6 +35,8 @@ export interface UserRoleRow {
   user_id: string;
   role: string;
   created_at: string;
+  /** E-mail da conta Google vinculada (google_drive_accounts.account_email), quando existir */
+  account_email?: string | null;
 }
 
 export interface IntegrationOverview {
@@ -115,15 +117,33 @@ export async function fetchRecentLogs(limit = 10): Promise<SyncLogRow[]> {
   return (data ?? []) as SyncLogRow[];
 }
 
-/** Lista de user_roles (para página de usuários) */
+/** Lista de user_roles (para página de usuários / settings). E-mail vem de google_drive_accounts. */
 export async function fetchUserRoles(): Promise<UserRoleRow[]> {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("id, user_id, role, created_at")
-    .order("created_at", { ascending: false });
+  const [{ data: roles, error: rolesError }, { data: driveRows, error: driveError }] =
+    await Promise.all([
+      supabase
+        .from("user_roles")
+        .select("id, user_id, role, created_at")
+        .order("created_at", { ascending: false }),
+      supabase.from("google_drive_accounts").select("user_id, account_email"),
+    ]);
 
-  if (error) throw error;
-  return (data ?? []) as UserRoleRow[];
+  if (rolesError) throw rolesError;
+  if (driveError) throw driveError;
+
+  const emailByUserId = new Map<string, string>();
+  for (const row of driveRows ?? []) {
+    const em = row.account_email?.trim();
+    if (!em) continue;
+    if (!emailByUserId.has(row.user_id)) {
+      emailByUserId.set(row.user_id, em);
+    }
+  }
+
+  return (roles ?? []).map((r) => ({
+    ...r,
+    account_email: emailByUserId.get(r.user_id) ?? null,
+  })) as UserRoleRow[];
 }
 
 /** Todos os logs com filtros (para página de logs) */

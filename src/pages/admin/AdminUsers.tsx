@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { EmptyState } from "@/components/admin/EmptyState";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchUserRoles, type UserRoleRow } from "@/services/admin/adminQueries";
+import { fetchUserRoles } from "@/services/admin/adminQueries";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Shield, Users, Search, RefreshCw, ChevronLeft, ChevronRight, Loader2, Info } from "lucide-react";
@@ -31,7 +31,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const ITEMS_PER_PAGE = 15;
 
 /**
- * Gestão de Usuários — lista user_roles (sem dados sensíveis).
+ * Gestão de Usuários — lista user_roles com e-mail da conta Google (google_drive_accounts).
  * Usa AppLayout global. Sem ações destrutivas.
  */
 export default function AdminUsers() {
@@ -48,16 +48,22 @@ export default function AdminUsers() {
   const usersWithRoles = useMemo(() => {
     if (!userRoles) return [];
 
-    const userMap = new Map<string, { user_id: string; roles: string[]; created_at: string }>();
+    const userMap = new Map<
+      string,
+      { user_id: string; roles: string[]; created_at: string; account_email: string | null }
+    >();
     userRoles.forEach((row) => {
       const existing = userMap.get(row.user_id);
+      const em = row.account_email?.trim() || null;
       if (existing) {
         existing.roles.push(row.role);
+        if (!existing.account_email && em) existing.account_email = em;
       } else {
         userMap.set(row.user_id, {
           user_id: row.user_id,
           roles: [row.role],
           created_at: row.created_at,
+          account_email: em,
         });
       }
     });
@@ -74,7 +80,11 @@ export default function AdminUsers() {
 
     const q = search.trim().toLowerCase();
     if (q) {
-      result = result.filter((u) => u.user_id.toLowerCase().includes(q));
+      result = result.filter(
+        (u) =>
+          u.user_id.toLowerCase().includes(q) ||
+          (u.account_email?.toLowerCase().includes(q) ?? false),
+      );
     }
 
     return result;
@@ -113,7 +123,7 @@ export default function AdminUsers() {
           </h1>
         </div>
         <p className="text-muted-foreground">
-          Visualização de user_roles. Sem dados sensíveis (email, tokens). Apenas leitura.
+          Visualização de user_roles. E-mail da conta Google (Drive) quando houver vínculo. Apenas leitura.
         </p>
       </div>
 
@@ -122,8 +132,8 @@ export default function AdminUsers() {
         <Alert variant="default" className="border-muted">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Nomes e emails não estão disponíveis — auth.users não é acessível via RLS.
-            Apenas user_id e roles são exibidos.
+            O e-mail exibido vem de <span className="font-medium">google_drive_accounts</span> (conta Google
+            conectada), não de auth.users. Usuários sem Drive vinculado aparecem sem e-mail.
           </AlertDescription>
         </Alert>
 
@@ -140,7 +150,7 @@ export default function AdminUsers() {
               <div className="relative w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por user_id..."
+                  placeholder="Buscar por user_id ou e-mail..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9"
@@ -188,10 +198,11 @@ export default function AdminUsers() {
               ) : (
                 <>
                   <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <Table className="w-full min-w-[640px]">
+                    <Table className="w-full min-w-[720px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>user_id</TableHead>
+                          <TableHead>E-mail</TableHead>
                           <TableHead>Roles</TableHead>
                           <TableHead>Criado em</TableHead>
                         </TableRow>
@@ -201,6 +212,9 @@ export default function AdminUsers() {
                           <TableRow key={user.user_id}>
                             <TableCell className="font-mono text-sm">
                               {user.user_id}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground max-w-[220px] truncate" title={user.account_email ?? undefined}>
+                              {user.account_email || "—"}
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">

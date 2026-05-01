@@ -1,0 +1,2414 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SwiftWapDrive Edge Functions API",
+    "description": "OpenAPI gerado a partir do código-fonte e migrações SQL do projeto. Não há controllers NestJS/Express neste repositório; as rotas HTTP implementadas são Supabase Edge Functions em /functions/v1.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://{project-ref}.supabase.co/functions/v1",
+      "description": "Supabase Edge Functions",
+      "variables": {
+        "project-ref": {
+          "default": "unknown",
+          "description": "Project ref Supabase (unknown no repositório)"
+        }
+      }
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/google-oauth": {
+      "post": {
+        "tags": [
+          "Google OAuth"
+        ],
+        "summary": "Gerencia fluxo OAuth do Google Drive",
+        "description": "Endpoint unificado para ações `authorize`, `callback` e `refresh`. Exige JWT de usuário no header Authorization.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleOAuthRequest"
+              },
+              "examples": {
+                "authorize": {
+                  "summary": "Gerar URL OAuth",
+                  "value": {
+                    "action": "authorize",
+                    "redirectUri": "https://app.example.com/oauth/callback"
+                  }
+                },
+                "callback": {
+                  "summary": "Trocar code por tokens",
+                  "value": {
+                    "action": "callback",
+                    "code": "4/0AbCDEF...",
+                    "redirectUri": "https://app.example.com/oauth/callback",
+                    "accountLabel": "Drive Principal"
+                  }
+                },
+                "refresh": {
+                  "summary": "Renovar access token",
+                  "value": {
+                    "action": "refresh",
+                    "accountId": "7f7500ad-76e8-4748-b4cf-3a07fda85f07"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sucesso (formato varia por action)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/GoogleOAuthAuthorizeResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GoogleOAuthCallbackResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GoogleOAuthRefreshResponse"
+                    }
+                  ]
+                },
+                "examples": {
+                  "authorize": {
+                    "value": {
+                      "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?...&state=user-id"
+                    }
+                  },
+                  "callback": {
+                    "value": {
+                      "success": true,
+                      "message": "Google Drive connected successfully"
+                    }
+                  },
+                  "refresh": {
+                    "value": {
+                      "success": true,
+                      "accessToken": "ya29.a0AfH6SM...",
+                      "expiresAt": "2026-04-30T20:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de validação/ação inválida/oauth",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "redirectUri ausente. Envie o redirectUri na requisição."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized / token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Unauthorized"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Limite de plano atingido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Limite do plano atingido: seu plano permite até 1 conta(s) Google Drive."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Unknown error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health-check": {
+      "post": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Executa checks de saúde de integrações",
+        "description": "Verifica WhatsApp, Google Drive e processamento de mídia para um usuário específico (`userId`) ou todos os usuários ativos.",
+        "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthCheckRequest"
+              },
+              "example": {
+                "userId": "f545385a-949c-48d2-bfdb-0adf14f8d78b"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado do check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheckResponse"
+                },
+                "example": {
+                  "success": true,
+                  "checked": 1,
+                  "results": [
+                    {
+                      "user_id": "f545385a-949c-48d2-bfdb-0adf14f8d78b",
+                      "overall": "healthy",
+                      "checks": {
+                        "whatsapp": {
+                          "status": "healthy",
+                          "message": "WhatsApp funcionando normalmente"
+                        },
+                        "google": {
+                          "status": "healthy",
+                          "message": "Google Drive funcionando normalmente"
+                        },
+                        "processing": {
+                          "status": "healthy",
+                          "message": "12 mídias processadas nas últimas 24h"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno fatal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Error: unknown"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/process-media": {
+      "post": {
+        "tags": [
+          "Media Processing"
+        ],
+        "summary": "Processa mídia do WhatsApp e envia para Drive",
+        "description": "Recebe `mediaFileId`, baixa mídia no Twilio, resolve conta/pasta no Google Drive, faz upload e atualiza status no banco.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessMediaRequest"
+              },
+              "example": {
+                "mediaFileId": "15fd3975-7f0e-46de-9f4d-1caeb2eec6f0"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Processamento concluído ou já em andamento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "success": true,
+                      "message": "Arquivo processado com sucesso"
+                    }
+                  },
+                  "alreadyProcessing": {
+                    "value": {
+                      "success": true,
+                      "message": "Arquivo já em processamento"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro de processamento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Error: mediaFileId é obrigatório"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reprocess-media": {
+      "post": {
+        "tags": [
+          "Media Processing"
+        ],
+        "summary": "Reinicia processamento de uma mídia",
+        "description": "Reseta estado da mídia (`pending`) e invoca `process-media` novamente.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessMediaRequest"
+              },
+              "example": {
+                "mediaFileId": "15fd3975-7f0e-46de-9f4d-1caeb2eec6f0"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reprocessamento aceito ou já em curso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageResponse"
+                },
+                "examples": {
+                  "triggered": {
+                    "value": {
+                      "success": true,
+                      "message": "Reprocessamento disparado com sucesso"
+                    }
+                  },
+                  "alreadyProcessing": {
+                    "value": {
+                      "success": true,
+                      "message": "Arquivo já está em processamento"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro ao reprocessar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessageResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Error: Arquivo não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/send-health-alert": {
+      "post": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Envia alerta crítico por e-mail",
+        "description": "Registra cooldown e envia e-mail via Resend para alertas críticos de integrações.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendHealthAlertRequest"
+              },
+              "example": {
+                "userId": "f545385a-949c-48d2-bfdb-0adf14f8d78b",
+                "alertType": "google_critical",
+                "message": "Token do Google expirado. Reconecte o Drive.",
+                "details": "unknown"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email enviado ou ignorado por cooldown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SendHealthAlertSuccessResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SendHealthAlertSkippedResponse"
+                    }
+                  ]
+                },
+                "examples": {
+                  "sent": {
+                    "value": {
+                      "success": true,
+                      "emailId": "40c5b17e-29ea-4e22-9869-39fd7be5f0f2"
+                    }
+                  },
+                  "skipped": {
+                    "value": {
+                      "success": true,
+                      "skipped": true,
+                      "reason": "cooldown"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Campos obrigatórios ausentes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "userId, alertType e message são obrigatórios"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuário/email não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Email do usuário não encontrado"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno/Resend",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Error: RESEND_API_KEY não configurada"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/twilio-provision-number": {
+      "post": {
+        "tags": [
+          "WhatsApp Twilio"
+        ],
+        "summary": "Provisiona conexão WhatsApp no modo shared",
+        "description": "Cria/atualiza `whatsapp_connections` para o usuário autenticado usando número Twilio global.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwilioProvisionRequest"
+              },
+              "example": {
+                "customerPhone": "+5511999999999",
+                "countryCode": "BR",
+                "label": "WhatsApp Comercial"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conexão criada ou já existente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/TwilioProvisionResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TwilioExistingConnectionResponse"
+                    }
+                  ]
+                },
+                "examples": {
+                  "created": {
+                    "value": {
+                      "success": true,
+                      "twilio_number": "+14155238886",
+                      "twilio_whatsapp_number": "whatsapp:+14155238886",
+                      "status": "connected",
+                      "mode": "shared",
+                      "message": "WhatsApp conectado com sucesso!"
+                    }
+                  },
+                  "existing": {
+                    "value": {
+                      "success": true,
+                      "message": "Conexão já existe",
+                      "twilio_number": "whatsapp:+14155238886",
+                      "status": "connected"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "customerPhone é obrigatório"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autorizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingAuth": {
+                    "value": {
+                      "error": "Não autorizado"
+                    }
+                  },
+                  "invalidSession": {
+                    "value": {
+                      "error": "Sessão inválida"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno ao provisionar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "TWILIO_WHATSAPP_NUMBER não configurado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/twilio-deprovision-number": {
+      "post": {
+        "tags": [
+          "WhatsApp Twilio"
+        ],
+        "summary": "Desprovisiona conexão WhatsApp do usuário",
+        "description": "Suspende subaccount Twilio (quando houver) e marca `whatsapp_connections.status = disconnected`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwilioDeprovisionRequest"
+              },
+              "example": {
+                "connectionId": "8f6a8fbe-c102-4d17-b068-c43d80f63173"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conexão removida com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessOnlyResponse"
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "connectionId ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "connectionId obrigatório"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autorizado/sessão inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Sessão inválida"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conexão não encontrada para o usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Conexão não encontrada"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "unknown"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whatsapp-test-connection": {
+      "post": {
+        "tags": [
+          "WhatsApp Twilio"
+        ],
+        "summary": "Testa credenciais Twilio",
+        "description": "Valida Account SID e Auth Token na API Twilio Accounts.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppTestConnectionRequest"
+              },
+              "example": {
+                "accountSid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "authToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "whatsappNumber": "whatsapp:+14155238886"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resposta de teste (inclusive credenciais inválidas retornam 200 com success=false)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/WhatsAppTestConnectionSuccessResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SuccessErrorResponse"
+                    }
+                  ]
+                },
+                "examples": {
+                  "valid": {
+                    "value": {
+                      "success": true,
+                      "friendly_name": "Main Account",
+                      "status": "active",
+                      "whatsapp_number": "whatsapp:+14155238886"
+                    }
+                  },
+                  "invalid": {
+                    "value": {
+                      "success": false,
+                      "error": "Credenciais inválidas. Verifique seu Account SID e Auth Token."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Campos obrigatórios ausentes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "accountSid e authToken são obrigatórios"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "unknown"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whatsapp-verify-status": {
+      "post": {
+        "tags": [
+          "WhatsApp Twilio"
+        ],
+        "summary": "Verifica status real da conexão WhatsApp",
+        "description": "Valida JWT, consulta conexão WhatsApp do usuário e testa credenciais Twilio para atualizar status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status verificado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppVerifyStatusSuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "friendly_name": "Main Account",
+                  "twilio_status": "active",
+                  "whatsapp_number": "whatsapp:+14155238886"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Credenciais Twilio ausentes/inválidas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Credenciais Twilio não configuradas na plataforma."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autorizado/sessão inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Sessão inválida. Faça login novamente."
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Método não permitido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Method not allowed"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Erro interno"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/whatsapp-webhook": {
+      "get": {
+        "tags": [
+          "WhatsApp Webhook"
+        ],
+        "summary": "Health ping do webhook",
+        "description": "Retorna `OK` para validação simples do endpoint.",
+        "responses": {
+          "200": {
+            "description": "Webhook ativo",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WhatsApp Webhook"
+        ],
+        "summary": "Recebe mídia via webhook Twilio",
+        "description": "Recebe payload `application/x-www-form-urlencoded` da Twilio, persiste mídia em `media_files` e dispara `process-media`. Pode validar assinatura `x-twilio-signature` quando habilitado.",
+        "parameters": [
+          {
+            "name": "x-twilio-signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Assinatura Twilio (obrigatória quando validação de assinatura está habilitada)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppWebhookRequest"
+              },
+              "example": {
+                "MessageSid": "SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "From": "whatsapp:+5511999999999",
+                "To": "whatsapp:+14155238886",
+                "ProfileName": "Contato",
+                "NumMedia": "1",
+                "MediaUrl0": "https://api.twilio.com/2010-04-01/Accounts/AC.../Messages/MM.../Media/ME...",
+                "MediaContentType0": "image/jpeg"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook processado",
+            "content": {
+              "text/xml": {
+                "schema": {
+                  "type": "string",
+                  "example": "<Response></Response>"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Assinatura Twilio inválida",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Forbidden"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Método não permitido",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Method not allowed"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "SuccessErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "error"
+        ]
+      },
+      "SuccessMessageResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ]
+      },
+      "SuccessOnlyResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "GoogleOAuthRequest": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "authorize",
+              "callback",
+              "refresh"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "redirectUri": {
+            "type": "string",
+            "format": "uri"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "action": {
+                  "const": "callback"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "code"
+              ]
+            }
+          }
+        ]
+      },
+      "GoogleOAuthAuthorizeResponse": {
+        "type": "object",
+        "properties": {
+          "authUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "authUrl"
+        ]
+      },
+      "GoogleOAuthCallbackResponse": {
+        "$ref": "#/components/schemas/SuccessMessageResponse"
+      },
+      "GoogleOAuthRefreshResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "success",
+          "accessToken",
+          "expiresAt"
+        ]
+      },
+      "HealthCheckRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "HealthCheckItem": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "HealthCheckResult": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "checks": {
+            "type": "object",
+            "properties": {
+              "whatsapp": {
+                "$ref": "#/components/schemas/HealthCheckItem"
+              },
+              "google": {
+                "$ref": "#/components/schemas/HealthCheckItem"
+              },
+              "processing": {
+                "$ref": "#/components/schemas/HealthCheckItem"
+              }
+            },
+            "additionalProperties": false
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "HealthCheckResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "checked": {
+            "type": "integer"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HealthCheckResult"
+            }
+          }
+        },
+        "required": [
+          "success",
+          "checked",
+          "results"
+        ]
+      },
+      "ProcessMediaRequest": {
+        "type": "object",
+        "properties": {
+          "mediaFileId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "mediaFileId"
+        ]
+      },
+      "SendHealthAlertRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "alertType": {
+            "type": "string",
+            "enum": [
+              "whatsapp_critical",
+              "google_critical",
+              "processing_critical"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "alertType",
+          "message"
+        ]
+      },
+      "SendHealthAlertSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "emailId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "emailId"
+        ]
+      },
+      "SendHealthAlertSkippedResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "cooldown"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "skipped",
+          "reason"
+        ]
+      },
+      "TwilioProvisionRequest": {
+        "type": "object",
+        "properties": {
+          "customerPhone": {
+            "type": "string",
+            "description": "Número do cliente. Aceita com ou sem +; será normalizado."
+          },
+          "countryCode": {
+            "type": "string",
+            "default": "BR"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "customerPhone"
+        ]
+      },
+      "TwilioProvisionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "twilio_number": {
+            "type": "string"
+          },
+          "twilio_whatsapp_number": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectionStatus"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "shared"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "twilio_number",
+          "twilio_whatsapp_number",
+          "status",
+          "mode",
+          "message"
+        ]
+      },
+      "TwilioExistingConnectionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "twilio_number": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectionStatus"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "twilio_number",
+          "status"
+        ]
+      },
+      "TwilioDeprovisionRequest": {
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "connectionId"
+        ]
+      },
+      "WhatsAppTestConnectionRequest": {
+        "type": "object",
+        "properties": {
+          "accountSid": {
+            "type": "string",
+            "minLength": 1
+          },
+          "authToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "whatsappNumber": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountSid",
+          "authToken"
+        ]
+      },
+      "WhatsAppTestConnectionSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "friendly_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "whatsapp_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "friendly_name",
+          "status",
+          "whatsapp_number"
+        ]
+      },
+      "WhatsAppVerifyStatusSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "friendly_name": {
+            "type": "string"
+          },
+          "twilio_status": {
+            "type": "string"
+          },
+          "whatsapp_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "friendly_name",
+          "twilio_status",
+          "whatsapp_number"
+        ]
+      },
+      "WhatsAppWebhookRequest": {
+        "type": "object",
+        "description": "Twilio envia campos dinâmicos MediaUrlN e MediaContentTypeN conforme NumMedia.",
+        "properties": {
+          "MessageSid": {
+            "type": "string"
+          },
+          "From": {
+            "type": "string"
+          },
+          "To": {
+            "type": "string"
+          },
+          "ProfileName": {
+            "type": "string"
+          },
+          "NumMedia": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "MediaUrl0": {
+            "type": "string",
+            "format": "uri"
+          },
+          "MediaContentType0": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "MessageSid",
+          "From",
+          "To",
+          "NumMedia"
+        ],
+        "additionalProperties": true
+      },
+      "ConnectionStatus": {
+        "type": "string",
+        "enum": [
+          "connected",
+          "disconnected",
+          "pending",
+          "error"
+        ]
+      },
+      "SyncStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "processing",
+          "completed",
+          "failed"
+        ]
+      },
+      "MediaType": {
+        "type": "string",
+        "enum": [
+          "image",
+          "video",
+          "audio",
+          "document"
+        ]
+      },
+      "HealthStatus": {
+        "type": "string",
+        "enum": [
+          "healthy",
+          "warning",
+          "critical",
+          "unknown"
+        ]
+      },
+      "HealthCheckType": {
+        "type": "string",
+        "enum": [
+          "whatsapp_token",
+          "whatsapp_webhook",
+          "google_token",
+          "google_api",
+          "media_processing"
+        ]
+      },
+      "PlanType": {
+        "type": "string",
+        "enum": [
+          "free",
+          "starter",
+          "pro",
+          "business"
+        ]
+      },
+      "AppRole": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "user"
+        ]
+      },
+      "UserRole": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AppRole"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "role"
+        ]
+      },
+      "Connection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "whatsapp_phone_number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "whatsapp_status": {
+            "$ref": "#/components/schemas/ConnectionStatus"
+          },
+          "whatsapp_connected_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "google_client_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_client_secret": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_redirect_uri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_access_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_refresh_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_token_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "google_status": {
+            "$ref": "#/components/schemas/ConnectionStatus"
+          },
+          "google_connected_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "google_root_folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_account_sid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_auth_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_whatsapp_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id"
+        ]
+      },
+      "UserSettings": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "auto_create_folders": {
+            "type": "boolean"
+          },
+          "organize_by_date": {
+            "type": "boolean"
+          },
+          "organize_by_type": {
+            "type": "boolean"
+          },
+          "organize_by_contact": {
+            "type": "boolean"
+          },
+          "max_file_size_mb": {
+            "type": "integer"
+          },
+          "enable_notifications": {
+            "type": "boolean"
+          },
+          "auto_sync_enabled": {
+            "type": "boolean"
+          },
+          "sync_images": {
+            "type": "boolean"
+          },
+          "sync_videos": {
+            "type": "boolean"
+          },
+          "sync_audio": {
+            "type": "boolean"
+          },
+          "sync_documents": {
+            "type": "boolean"
+          },
+          "folder_structure": {
+            "type": "string",
+            "enum": [
+              "sender_date_type",
+              "date_type",
+              "type_date",
+              "type",
+              "date"
+            ]
+          },
+          "notification_on_error": {
+            "type": "boolean"
+          },
+          "notification_on_success": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id"
+        ]
+      },
+      "Subscription": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanType"
+          },
+          "status": {
+            "type": "string",
+            "description": "Valores observados no schema: active | past_due | canceled | unknown"
+          },
+          "stripe_customer_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stripe_subscription_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "current_period_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "monthly_file_limit": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "monthly_storage_mb": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "files_used_current_month": {
+            "type": "integer"
+          },
+          "whatsapp_numbers_limit": {
+            "type": "integer"
+          },
+          "google_accounts_limit": {
+            "type": "integer"
+          },
+          "overage_enabled": {
+            "type": "boolean"
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "plan",
+          "status"
+        ]
+      },
+      "MediaFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "whatsapp_connection_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "google_drive_account_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "whatsapp_media_id": {
+            "type": "string"
+          },
+          "whatsapp_message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sender_phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sender_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "file_type": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "file_size_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "mime_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_drive_file_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_drive_folder_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_drive_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/SyncStatus"
+          },
+          "error_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retry_count": {
+            "type": "integer"
+          },
+          "is_permanent_failure": {
+            "type": "boolean"
+          },
+          "last_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "processed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "whatsapp_media_id",
+          "file_name",
+          "file_type"
+        ]
+      },
+      "SyncLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "media_file_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SyncStatus"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "action",
+          "status"
+        ]
+      },
+      "WhatsAppConnection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone_number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectionStatus"
+          },
+          "provider": {
+            "type": "string",
+            "default": "twilio"
+          },
+          "customer_phone_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_account_sid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_auth_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_subaccount_sid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_subaccount_auth_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_whatsapp_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twilio_number_sid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connected_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "status"
+        ]
+      },
+      "GoogleDriveAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account_email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "access_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "refresh_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "token_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "root_folder_path": {
+            "type": "string",
+            "default": "/SwiftWapDrive"
+          },
+          "root_folder_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectionStatus"
+          },
+          "connected_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "root_folder_path",
+          "status"
+        ]
+      },
+      "MediaRoutingRule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "whatsapp_connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "google_drive_account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "file_type": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MediaType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "whatsapp_connection_id",
+          "google_drive_account_id"
+        ]
+      },
+      "IntegrationHealthLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "check_type": {
+            "$ref": "#/components/schemas/HealthCheckType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "check_type",
+          "status"
+        ]
+      },
+      "IntegrationStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "whatsapp_health": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "whatsapp_last_check": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "whatsapp_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "google_health": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "google_last_check": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "google_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "processing_health": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "processing_last_check": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "processing_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "overall_status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id"
+        ]
+      },
+      "EmailNotificationsLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "alert_type": {
+            "type": "string",
+            "enum": [
+              "whatsapp_critical",
+              "google_critical",
+              "processing_critical"
+            ]
+          },
+          "service_name": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "email_to": {
+            "type": "string",
+            "format": "email"
+          },
+          "resend_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "alert_type",
+          "service_name",
+          "message",
+          "email_to",
+          "sent_at",
+          "created_at"
+        ]
+      },
+      "DriveFolderCache": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "google_account_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "folder_path": {
+            "type": "string"
+          },
+          "folder_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "folder_path",
+          "folder_id"
+        ]
+      }
+    }
+  }
+}
