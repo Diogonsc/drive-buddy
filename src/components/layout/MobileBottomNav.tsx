@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 interface SubscriptionSummary {
   plan: string;
+  plan_name: string | null;
   monthly_file_limit: number | null;
   files_used_current_month: number | null;
 }
@@ -44,7 +45,7 @@ export function MobileBottomNav() {
     const loadPlan = async () => {
       const { data } = await supabase
         .from("subscriptions")
-        .select("plan, monthly_file_limit, files_used_current_month")
+        .select("plan, plan_name, monthly_file_limit, files_used_current_month")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -124,14 +125,10 @@ export function MobileBottomNav() {
               <div className="rounded-lg border p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">Plano</p>
-                  <Badge>Plano Essencial</Badge>
+                  <Badge>{plan?.plan_name ?? "Profissional"}</Badge>
                 </div>
                 <Separator className="my-3" />
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Plano</span>
-                    <span className="font-medium">Essencial</span>
-                  </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Mídias no ciclo</span>
                     <span>
@@ -142,8 +139,9 @@ export function MobileBottomNav() {
                     <div className="flex justify-between text-amber-600">
                       <span>Excedente</span>
                       <span>
-                        R$ {(((plan?.files_used_current_month ?? 0) - (plan?.monthly_file_limit ?? 200)) * 0.25)
-                          .toFixed(2).replace('.', ',')}
+                        R$ {(((plan?.files_used_current_month ?? 0) -
+                          (plan?.monthly_file_limit ?? 200)) * 0.25)
+                          .toFixed(2).replace(".", ",")}
                       </span>
                     </div>
                   )}

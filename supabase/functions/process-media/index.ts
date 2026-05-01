@@ -421,24 +421,30 @@ async function resolveGoogleAccount(media: Record<string, unknown>) {
 async function enforcePlanBeforeProcessing(userId: string) {
   const { data: sub } = await supabase
     .from('subscriptions')
-    .select('monthly_file_limit, files_used_current_month, overage_enabled, current_period_end')
+    .select('plan, plan_name, monthly_file_limit, files_used_current_month, overage_enabled')
     .eq('user_id', userId)
     .maybeSingle()
 
-  // Sem subscription: permite com limite padrão do Plano Essencial
-  if (!sub) return { limit: 200, usedBefore: 0, overageEnabled: true }
+  // Sem subscription: cria com plano Profissional como padrão
+  if (!sub) return { limit: 200, usedBefore: 0, overageEnabled: true, planName: 'Profissional' }
 
-  const limit = sub.monthly_file_limit == null ? 200 : Number(sub.monthly_file_limit)
-  const overageEnabled = true // Plano Essencial sempre permite excedente (cobrado separado)
-  const usedBefore = await supabase
-    .from('subscriptions')
-    .select('files_used_current_month')
-    .eq('user_id', userId)
-    .maybeSingle()
-    .then(r => Number(r.data?.files_used_current_month ?? 0))
+  // Limite por plano — fallback para o valor do banco ou padrão do plano
+  const planLimits: Record<string, number> = {
+    starter: 80,
+    professional: 200,
+    scale: 600,
+  }
 
-  // No modelo Essencial, nunca bloqueia — apenas registra excedente
-  return { limit, usedBefore, overageEnabled: true }
+  const planKey = (sub.plan as string)?.toLowerCase() || 'professional'
+  const limit = sub.monthly_file_limit != null
+    ? Number(sub.monthly_file_limit)
+    : (planLimits[planKey] ?? 200)
+
+  const usedBefore = Number(sub.files_used_current_month ?? 0)
+  const planName = sub.plan_name || 'Profissional'
+
+  // Plano Essencial sempre permite excedente (cobrado separado)
+  return { limit, usedBefore, overageEnabled: true, planName }
 }
 
 async function registerPlanUsage(
@@ -446,6 +452,7 @@ async function registerPlanUsage(
   mediaFileId: string,
   usedBefore: number,
   limit: number | null,
+  planName?: string,
 ) {
   await supabase
     .from('subscriptions')
@@ -473,8 +480,8 @@ async function registerPlanUsage(
         status: 'completed',
         message:
           usedAfter >= limit
-            ? `Mídias inclusas esgotadas (${usedAfter}/${limit}) — excedente: R$ 0,25/mídia`
-            : `Uso do plano atingiu ${marker.label} (${usedAfter}/${limit})`,
+            ? `[${planName || 'Plano'}] Mídias inclusas esgotadas (${usedAfter}/${limit}) — excedente: R$ 0,25/mídia`
+            : `[${planName || 'Plano'}] Uso atingiu ${marker.label} (${usedAfter}/${limit})`,
         metadata: { used: usedAfter, limit, ratio: marker.ratio },
         source: 'process-media',
       })
@@ -671,7 +678,7 @@ Deno.serve(async (req) => {
         .is("root_folder_id", null)
     }
 
-    await registerPlanUsage(userId, mediaFileId, planState.usedBefore, planState.limit);
+    await registerPlanUsage(userId, mediaFileId, planState.usedBefore, planState.limit, planState.planName);
 
     await supabase.from("sync_logs").insert({
       user_id: userId,

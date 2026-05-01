@@ -38,6 +38,8 @@ type RuleFileType = "image" | "video" | "audio" | "document" | "all";
 
 interface SubscriptionInfo {
   plan: string;
+  plan_name: string | null;
+  plan_price: number | null;
   monthly_file_limit: number | null;
   files_used_current_month: number | null;
   overage_enabled: boolean;
@@ -119,7 +121,7 @@ export default function Settings() {
       ] = await Promise.all([
         supabase
           .from("subscriptions")
-          .select("plan, monthly_file_limit, files_used_current_month, overage_enabled")
+          .select("plan, plan_name, plan_price, monthly_file_limit, files_used_current_month, overage_enabled")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase
@@ -132,7 +134,9 @@ export default function Settings() {
 
       if (subscriptionData) {
         setSubscription({
-          plan: "Plano Essencial",
+          plan: subscriptionData.plan ?? "professional",
+          plan_name: subscriptionData.plan_name ?? "Profissional",
+          plan_price: subscriptionData.plan_price ?? 9700,
           monthly_file_limit: subscriptionData.monthly_file_limit ?? 200,
           files_used_current_month: subscriptionData.files_used_current_month ?? 0,
           overage_enabled: true,
@@ -740,10 +744,18 @@ export default function Settings() {
             <CardHeader>
               <CardTitle>Consumo do mês</CardTitle>
               <CardDescription>
-                Plano Essencial — 200 mídias inclusas | R$ 0,25 por mídia excedente
+                {subscription?.plan_name ?? "Profissional"} —{" "}
+                {subscription?.monthly_file_limit ?? 200} mídias inclusas | R$ 0,25 por mídia excedente
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Plano atual</span>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                  {subscription?.plan_name ?? "Profissional"}
+                </span>
+              </div>
+
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Mídias processadas</span>
                 <span className="font-semibold">
@@ -762,21 +774,33 @@ export default function Settings() {
                         (subscription?.monthly_file_limit ?? 200)) *
                         100,
                     )}%`,
+                    backgroundColor:
+                      (subscription?.files_used_current_month ?? 0) >
+                      (subscription?.monthly_file_limit ?? 200)
+                        ? "hsl(var(--destructive))"
+                        : undefined,
                   }}
                 />
               </div>
-              {(subscription?.files_used_current_month ?? 0) > (subscription?.monthly_file_limit ?? 200) && (
+
+              {(subscription?.files_used_current_month ?? 0) >
+                (subscription?.monthly_file_limit ?? 200) && (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
                   <strong>Excedente ativo:</strong>{" "}
-                  {(subscription?.files_used_current_month ?? 0) - (subscription?.monthly_file_limit ?? 200)} mídias extras
-                  {" "}= R${" "}
+                  {(subscription?.files_used_current_month ?? 0) -
+                    (subscription?.monthly_file_limit ?? 200)}{" "}
+                  mídias extras = R${" "}
                   {(
                     ((subscription?.files_used_current_month ?? 0) -
                       (subscription?.monthly_file_limit ?? 200)) *
                     0.25
-                  ).toFixed(2).replace(".", ",")} adicionais este mês
+                  )
+                    .toFixed(2)
+                    .replace(".", ",")}{" "}
+                  adicionais este mês
                 </div>
               )}
+
               <p className="text-xs text-muted-foreground">
                 O contador é zerado automaticamente a cada ciclo mensal.
               </p>
