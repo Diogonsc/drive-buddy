@@ -1,8 +1,12 @@
 -- =====================================================
 -- Swiftwapdrive — 3 Planos: Starter, Profissional, Scale
 -- =====================================================
+--
+-- PostgreSQL não permite usar um label de enum recém-adicionado na mesma
+-- transação em que foi criado (55P04). Por isso: fase 1 + COMMIT, depois o resto.
+--
 
--- Adiciona novos valores ao enum plan_type se não existirem
+-- ---------- FASE 1: apenas novos valores em plan_type ----------
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -29,6 +33,10 @@ BEGIN
     ALTER TYPE plan_type ADD VALUE 'scale';
   END IF;
 END$$;
+
+COMMIT;
+
+-- ---------- FASE 2: schema + dados (usa 'professional' no UPDATE) ----------
 
 -- Adiciona campos necessários à tabela subscriptions
 ALTER TABLE public.subscriptions
@@ -80,7 +88,9 @@ ON CONFLICT (id) DO UPDATE SET
 -- RLS na tabela plan_definitions (leitura pública)
 ALTER TABLE public.plan_definitions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Plan definitions are publicly readable"
+-- IF NOT EXISTS em CREATE POLICY só existe no PG15+; DROP + CREATE é idempotente em re-execuções
+DROP POLICY IF EXISTS "Plan definitions are publicly readable" ON public.plan_definitions;
+CREATE POLICY "Plan definitions are publicly readable"
   ON public.plan_definitions FOR SELECT
   USING (true);
 
