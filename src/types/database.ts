@@ -275,6 +275,13 @@ export interface Database {
           monthly_file_limit: number | null
           files_used_current_month: number | null
           overage_enabled: boolean
+          stripe_subscription_id: string | null
+          stripe_customer_id: string | null
+          payment_status: string | null
+          current_period_end: string | null
+          is_active: boolean
+          manually_disabled: boolean
+          disabled_reason: string | null
           created_at: string
           updated_at: string
         }
@@ -287,6 +294,13 @@ export interface Database {
           monthly_file_limit?: number | null
           files_used_current_month?: number | null
           overage_enabled?: boolean
+          stripe_subscription_id?: string | null
+          stripe_customer_id?: string | null
+          payment_status?: string | null
+          current_period_end?: string | null
+          is_active?: boolean
+          manually_disabled?: boolean
+          disabled_reason?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -299,6 +313,13 @@ export interface Database {
           monthly_file_limit?: number | null
           files_used_current_month?: number | null
           overage_enabled?: boolean
+          stripe_subscription_id?: string | null
+          stripe_customer_id?: string | null
+          payment_status?: string | null
+          current_period_end?: string | null
+          is_active?: boolean
+          manually_disabled?: boolean
+          disabled_reason?: string | null
           created_at?: string
           updated_at?: string
         }

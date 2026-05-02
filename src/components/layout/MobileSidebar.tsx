@@ -1,15 +1,14 @@
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Link2, 
-  FolderOpen, 
-  Activity, 
+import {
+  Activity,
+  FolderOpen,
+  HelpCircle,
+  LayoutDashboard,
+  Link2,
   Settings,
-  HelpCircle
-} from "lucide-react";
+} from "@/lib/icons";
 import { Link, useLocation } from "react-router-dom";
 import { SheetClose } from "@/components/ui/sheet";
-import { FaCloud } from "react-icons/fa";
 import logo from "@/assets/logo.png"
 
 interface NavItem {

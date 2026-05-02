@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { LucideIcon, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
+import { LucideIcon, ArrowRight, CheckCircle2, XCircle } from "@/lib/icons";
 import { Button } from "./button";
 import { StatusBadge } from "./StatusBadge";
 

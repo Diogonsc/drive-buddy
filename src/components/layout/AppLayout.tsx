@@ -8,12 +8,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import {
-  HiOutlineBell,
-  HiOutlineCog6Tooth,
-  HiOutlineShieldCheck,
-} from "react-icons/hi2";
-import { FaCloud } from "react-icons/fa";
+import { Bell, Settings, ShieldCheck } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -70,7 +65,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                         size="icon"
                         aria-label="Painel Admin"
                       >
-                        <HiOutlineShieldCheck className="h-5 w-5" />
+                        <ShieldCheck className="h-5 w-5" />
                       </Button>
                     </Link>
                   </TooltipTrigger>
@@ -79,12 +74,12 @@ export function AppLayout({ children }: AppLayoutProps) {
               </TooltipProvider>
             )}
             <Button variant="ghost" size="icon" className="relative">
-              <HiOutlineBell className="h-5 w-5" />
+              <Bell className="h-5 w-5" />
               <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
             </Button>
             <Link to="/settings">
               <Button variant="ghost" size="icon">
-                <HiOutlineCog6Tooth className="h-5 w-5" />
+                <Settings className="h-5 w-5" />
               </Button>
             </Link>
           </div>

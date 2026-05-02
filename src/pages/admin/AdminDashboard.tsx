@@ -21,10 +21,19 @@ import {
   fetchRecentLogs,
   type SyncLogRow,
 } from "@/services/admin/adminQueries";
-import { Users, Shield, Activity, AlertCircle, Loader2, ScrollText, Link as LinkIcon } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  FaGoogleDrive,
+  FaWhatsapp,
+  Link as LinkIcon,
+  Loader2,
+  ScrollText,
+  Shield,
+  Users,
+} from "@/lib/icons";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 /**
  * Dashboard Admin — visão geral do sistema (somente leitura).
  * Usa AppLayout global. Dados via user_roles e sync_logs (RLS permitido para admin).

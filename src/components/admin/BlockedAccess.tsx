@@ -1,4 +1,4 @@
-import { AlertCircle, Lock } from "lucide-react";
+import { AlertCircle, Lock } from "@/lib/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface BlockedAccessProps {

@@ -1,4 +1,4 @@
-import { LucideIcon, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
+import { LucideIcon, CheckCircle2, XCircle, HelpCircle } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 type StatusType = "connected" | "active" | "unknown" | "disconnected" | "error";

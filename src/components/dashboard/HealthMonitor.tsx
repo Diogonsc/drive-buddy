@@ -8,16 +8,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Activity,
-  CheckCircle2,
   AlertTriangle,
-  XCircle,
+  CheckCircle2,
+  Clock,
+  Cpu,
+  FaGoogleDrive,
+  FaWhatsapp,
   HelpCircle,
   RefreshCw,
-  Cpu,
-  Clock,
-} from "lucide-react";
+  XCircle,
+} from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 type HealthStatus = "healthy" | "warning" | "critical" | "unknown";
 

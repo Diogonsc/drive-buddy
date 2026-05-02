@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
-import { Cloud, Loader2, Mail, ArrowLeft } from 'lucide-react'
+import { Cloud, Loader2, Mail, ArrowLeft } from '@/lib/icons'
 import logo from "@/assets/logo.png"
 
 function getResetRedirectUrl() {

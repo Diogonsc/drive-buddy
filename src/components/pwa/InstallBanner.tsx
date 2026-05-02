@@ -2,8 +2,7 @@ import { useState } from "react";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { HiOutlineDevicePhoneMobile, HiXMark } from "react-icons/hi2";
-import { FaCloud } from "react-icons/fa";
+import { Cloud, DevicePhoneMobile, HiXMark } from "@/lib/icons";
 import logo from "@/assets/logo.png"
 
 export function InstallBanner() {
@@ -19,7 +18,7 @@ export function InstallBanner() {
         <CardContent className="flex items-start gap-3 p-4">
           <div className="flex items-center justify-center rounded-lg">
             <img src={logo} alt="Swiftwapdrive" className="h-10 w-10 rounded-lg text-primary-foreground" />
-            <FaCloud className="h-5 w-5 text-primary-foreground" />
+            <Cloud className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="flex-1 space-y-1">
             <p className="text-sm font-semibold text-foreground">Instale o Swiftwapdrive</p>
@@ -48,7 +47,7 @@ export function InstallBanner() {
     <Card className="border-primary/30 bg-primary/5">
       <CardContent className="flex items-center gap-3 p-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary">
-          <HiOutlineDevicePhoneMobile className="h-5 w-5 text-primary-foreground" />
+          <DevicePhoneMobile className="h-5 w-5 text-primary-foreground" />
         </div>
         <div className="flex-1 space-y-0.5">
           <p className="text-sm font-semibold text-foreground">Instale o app</p>

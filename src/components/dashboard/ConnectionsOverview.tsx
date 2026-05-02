@@ -1,5 +1,5 @@
 
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
+import { FaWhatsapp, FaGoogleDrive } from "@/lib/icons";
 import { ConnectionCard } from "@/components/ui/ConnectionCard";
 
 interface ConnectionsOverviewProps {

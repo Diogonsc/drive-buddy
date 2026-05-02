@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ExternalLink, FileAudio, FileText, FolderOpen, Image, Loader2, Video } from "lucide-react";
+import { ExternalLink, FileAudio, FileText, FolderOpen, Image, Loader2, Video } from "@/lib/icons";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 

@@ -25,7 +25,7 @@ import {
   FolderOpen, Shield, Search, RefreshCw, RotateCcw, Eye, Loader2,
   ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock,
   Image, Video, FileAudio, FileText,
-} from "lucide-react";
+} from "@/lib/icons";
 
 const PAGE_SIZE = 20;
 

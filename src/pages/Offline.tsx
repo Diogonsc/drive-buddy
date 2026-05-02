@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FaCloud } from "react-icons/fa";
-import { HiOutlineWifi, HiOutlineArrowPath } from "react-icons/hi2";
+import { ArrowPath, Cloud, WifiOutline } from "@/lib/icons";
 
 export default function Offline() {
   const [checking, setChecking] = useState(false);
@@ -29,10 +28,10 @@ export default function Offline() {
         <CardContent className="flex flex-col items-center gap-6 p-8 text-center">
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-              <HiOutlineWifi className="h-10 w-10 text-muted-foreground" />
+              <WifiOutline className="h-10 w-10 text-muted-foreground" />
             </div>
             <div className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-              <FaCloud className="h-4 w-4 text-primary-foreground" />
+              <Cloud className="h-4 w-4 text-primary-foreground" />
             </div>
           </div>
 
@@ -44,7 +43,7 @@ export default function Offline() {
           </div>
 
           <Button onClick={handleRetry} disabled={checking} className="w-full gap-2">
-            <HiOutlineArrowPath className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
+            <ArrowPath className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
             {checking ? "Verificando..." : "Tentar novamente"}
           </Button>
         </CardContent>

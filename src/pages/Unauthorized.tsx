@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldX, ArrowLeft } from "lucide-react";
+import { ShieldX, ArrowLeft } from "@/lib/icons";
 
 export default function Unauthorized() {
   return (

@@ -10,14 +10,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConnections } from "@/hooks/useConnections";
 import {
   CheckCircle2,
-  XCircle,
   Clock,
-  Settings,
-  RefreshCw,
-  Loader2,
+  FaGoogleDrive,
+  FaWhatsapp,
   Link as LinkIcon,
-} from "lucide-react";
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
+  Loader2,
+  RefreshCw,
+  Settings,
+  XCircle,
+} from "@/lib/icons";
 
 interface SubscriptionInfo {
   whatsapp_numbers_limit: number;

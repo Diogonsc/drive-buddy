@@ -1,6 +1,5 @@
-import { Server, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, FaGoogleDrive, FaWhatsapp, Server } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { FaWhatsapp, FaGoogleDrive, FaArrowRight } from "react-icons/fa6";
 
 interface FlowVisualizationProps {
   whatsappConnected: boolean;
@@ -46,7 +45,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
               "h-0.5 flex-1 max-w-16 transition-colors",
               whatsappConnected ? "bg-primary" : "bg-border"
             )} />
-            <FaArrowRight className={cn(
+            <ArrowRight className={cn(
               "h-5 w-5 mx-1 transition-colors",
               whatsappConnected ? "text-primary" : "text-muted-foreground",
               isProcessing && "animate-pulse"
@@ -84,7 +83,7 @@ export function FlowVisualization({ whatsappConnected, googleDriveConnected, isP
               "h-0.5 flex-1 max-w-16 transition-colors",
               googleDriveConnected ? "bg-primary" : "bg-border"
             )} />
-            <FaArrowRight className={cn(
+            <ArrowRight className={cn(
               "h-5 w-5 mx-1 transition-colors",
               googleDriveConnected ? "text-primary" : "text-muted-foreground",
               isProcessing && "animate-pulse"

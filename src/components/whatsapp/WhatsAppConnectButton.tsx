@@ -6,13 +6,16 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import {
-  CheckCircle2, XCircle, Loader2,
-  Link2, Shield,
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { supabase } from '@/integrations/supabase/client'
-import { cn } from '@/lib/utils'
-import { FaWhatsapp } from 'react-icons/fa6'
+  CheckCircle2,
+  FaWhatsapp,
+  Link2,
+  Loader2,
+  Shield,
+  XCircle,
+} from "@/lib/icons";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 type ProvisionStep = 'idle' | 'creating_account' | 'searching_number' | 'purchasing' | 'configuring' | 'success' | 'error'
 

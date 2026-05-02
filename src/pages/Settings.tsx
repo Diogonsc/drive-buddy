@@ -19,18 +19,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConnections } from "@/hooks/useConnections";
 import { supabase } from "@/integrations/supabase/client";
 import {
-    FolderTree,
-    Link as LinkIcon,
-    Loader2,
-    RefreshCw,
-    Save,
-    Shield,
-    Trash2,
-} from "lucide-react";
+  FaGoogleDrive,
+  FaWhatsapp,
+  FolderTree,
+  Link as LinkIcon,
+  Loader2,
+  RefreshCw,
+  Save,
+  Shield,
+  Trash2,
+} from "@/lib/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 const VALID_TABS = ["whatsapp", "google", "routing", "general"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];

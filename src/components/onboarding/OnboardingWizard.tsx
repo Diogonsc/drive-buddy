@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
-  Send,
   ArrowRight,
   CheckCircle2,
-} from "lucide-react";
+  FaGoogleDrive,
+  FaWhatsapp,
+  Send,
+} from "@/lib/icons";
 import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
 import { toast } from "sonner";
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 interface OnboardingWizardProps {
   open: boolean;

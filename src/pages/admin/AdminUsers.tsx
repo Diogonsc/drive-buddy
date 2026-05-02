@@ -25,7 +25,7 @@ import {
 import { fetchUserRoles } from "@/services/admin/adminQueries";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Shield, Users, Search, RefreshCw, ChevronLeft, ChevronRight, Loader2, Info } from "lucide-react";
+import { Shield, Users, Search, RefreshCw, ChevronLeft, ChevronRight, Loader2, Info } from "@/lib/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ITEMS_PER_PAGE = 15;

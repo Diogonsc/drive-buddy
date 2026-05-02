@@ -1,5 +1,5 @@
 import logo from "@/assets/logo.png";
-import { HardDrive, MessageCircle, Zap } from "lucide-react";
+import { HardDrive, MessageCircle, Zap } from "@/lib/icons";
 const features = [
   {
     icon: MessageCircle,

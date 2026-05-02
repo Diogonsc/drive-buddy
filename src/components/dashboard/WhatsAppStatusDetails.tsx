@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, AlertCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, RefreshCw } from "@/lib/icons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

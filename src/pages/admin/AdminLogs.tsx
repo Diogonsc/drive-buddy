@@ -54,7 +54,7 @@ import {
   Video,
   FileAudio,
   FileText,
-} from "lucide-react";
+} from "@/lib/icons";
 import { toast } from "sonner";
 
 const MediaIcon = ({ type }: { type: MediaType }) => {

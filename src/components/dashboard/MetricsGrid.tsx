@@ -1,4 +1,4 @@
-import { Image, Video, FileAudio, FileText, CheckCircle2, XCircle, Clock, HardDrive } from "lucide-react";
+import { Image, Video, FileAudio, FileText, CheckCircle2, XCircle, Clock, HardDrive } from "@/lib/icons";
 import { MetricCard } from "@/components/ui/MetricCard";
 
 interface Metrics {

@@ -7,7 +7,7 @@ import {
   Link2,
   Settings2,
   Shield,
-} from "lucide-react"
+} from "@/lib/icons"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -52,6 +52,7 @@ const adminNavItem = {
   icon: Shield,
   items: [
     { title: "Dashboard", url: "/admin" },
+    { title: "Financeiro", url: "/admin/financial" },
     { title: "Usuários", url: "/admin/users" },
     { title: "Arquivos", url: "/admin/media" },
     { title: "Logs", url: "/admin/logs" },

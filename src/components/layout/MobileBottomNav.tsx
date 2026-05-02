@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { HiOutlineArrowRightOnRectangle, HiOutlineChartBar, HiOutlineFolderOpen, HiOutlineHome, HiOutlineUserCircle } from "react-icons/hi2";
-import { Link2 } from "lucide-react";
+import {
+  ChartBarOutline,
+  FolderOpen,
+  HomeOutline,
+  Link2,
+  LogOut,
+  UserCircleOutline,
+} from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -26,10 +32,10 @@ interface SubscriptionSummary {
 }
 
 const navItems = [
-  { id: "home", label: "Início", path: "/", icon: HiOutlineHome },
+  { id: "home", label: "Início", path: "/", icon: HomeOutline },
   { id: "connections", label: "Conexões", path: "/connections", icon: Link2 },
-  { id: "files", label: "Arquivos", path: "/files", icon: HiOutlineFolderOpen },
-  { id: "logs", label: "Logs", path: "/logs", icon: HiOutlineChartBar },
+  { id: "files", label: "Arquivos", path: "/files", icon: FolderOpen },
+  { id: "logs", label: "Logs", path: "/logs", icon: ChartBarOutline },
 ] as const;
 
 export function MobileBottomNav() {
@@ -102,7 +108,7 @@ export function MobileBottomNav() {
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="ghost" className="h-14 w-full flex-col gap-1 rounded-xl px-1">
-              <HiOutlineUserCircle className="h-4 w-4" />
+              <UserCircleOutline className="h-4 w-4" />
               <span className="text-[11px] leading-none">Perfil</span>
             </Button>
           </SheetTrigger>
@@ -153,7 +159,7 @@ export function MobileBottomNav() {
                   Configurações
                 </Button>
                 <Button className="flex-1" variant="destructive" onClick={handleLogout}>
-                  <HiOutlineArrowRightOnRectangle className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 h-4 w-4" />
                   Sair
                 </Button>
               </div>

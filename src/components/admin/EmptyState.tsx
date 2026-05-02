@@ -1,4 +1,4 @@
-import { LucideIcon, Inbox } from "lucide-react";
+import { LucideIcon, Inbox } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {

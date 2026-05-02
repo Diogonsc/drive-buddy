@@ -50,7 +50,7 @@ import {
   Eye,
   Loader2,
   ExternalLink,
-} from "lucide-react";
+} from "@/lib/icons";
 import { LogEntry, MediaType } from "@/components/ui/ActivityLog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";

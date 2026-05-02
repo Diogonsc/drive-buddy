@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { Loader2, Eye, EyeOff, Check, ArrowLeft } from "lucide-react";
+import { Loader2, Eye, EyeOff, Check, ArrowLeft } from "@/lib/icons";
 import logo from "@/assets/logo.png";
 
 const PLAN_PRICE_IDS = {
@@ -30,20 +30,20 @@ const PLANS: {
   {
     slug: "starter",
     name: "Starter",
-    priceLabel: "R$ 97/mês",
-    features: ["Até 500 mídias/mês", "1 número WhatsApp", "1 conta Google Drive"],
+    priceLabel: "R$ 59/mês",
+    features: ["Até 80 mídias/mês", "1 número WhatsApp", "1 conta Google Drive"],
   },
   {
     slug: "professional",
     name: "Profissional",
-    priceLabel: "R$ 197/mês",
-    features: ["Até 2.000 mídias/mês", "3 números WhatsApp", "3 contas Google Drive"],
+    priceLabel: "R$ 97/mês",
+    features: ["Até 200 mídias/mês", "1 número WhatsApp", "1 conta Google Drive"],
   },
   {
     slug: "scale",
     name: "Scale",
-    priceLabel: "R$ 397/mês",
-    features: ["Mídias ilimitadas", "Números e contas ilimitados", "Suporte prioritário"],
+    priceLabel: "R$ 247/mês",
+    features: ["Até 600 mídias/mês", "1 número WhatsApp", "1 conta Google Drive"],
   },
 ];
 

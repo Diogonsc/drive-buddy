@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   XCircle,
   HardDrive,
-} from "lucide-react";
+} from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface AnalyticsData {

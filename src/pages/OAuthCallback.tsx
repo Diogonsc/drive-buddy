@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Loader2, CheckCircle, XCircle, Cloud } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, Cloud } from '@/lib/icons'
 
 type CallbackStatus = 'processing' | 'success' | 'error'
 

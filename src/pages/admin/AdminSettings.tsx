@@ -19,17 +19,18 @@ import { fetchIntegrationOverview, fetchPlanDistribution, fetchUserRoles } from 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Shield,
-  Settings,
   Database,
-  Link as LinkIcon,
-  Lock,
   ExternalLink,
+  FaGoogleDrive,
+  FaWhatsapp,
   Info,
+  Link as LinkIcon,
   Loader2,
+  Lock,
   ScrollText,
-} from "lucide-react";
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
+  Settings,
+  Shield,
+} from "@/lib/icons";
 /**
  * Configurações Admin — informações do sistema, status de integrações,
  * roles/permissões e segurança. Sem escrita no banco.

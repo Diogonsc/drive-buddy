@@ -27,6 +27,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminMedia from "./pages/admin/AdminMedia";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminFinancial from "./pages/admin/AdminFinancial";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/admin/media" element={<AdminRoute><AdminMedia /></AdminRoute>} />
             <Route path="/admin/logs" element={<AdminRoute><AdminLogs /></AdminRoute>} />
             <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
+            <Route path="/admin/financial" element={<AdminRoute><AdminFinancial /></AdminRoute>} />
 
             {/* Acesso negado (não-admin em /admin) */}
             <Route path="/unauthorized" element={<Unauthorized />} />

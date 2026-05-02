@@ -236,3 +236,82 @@ export async function fetchPlanDistribution(): Promise<PlanDistributionRow[]> {
     users: users.size,
   }));
 }
+
+export interface FinancialCustomer {
+  user_id: string;
+  account_email: string | null;
+  plan: string;
+  plan_name: string | null;
+  plan_price: number | null;
+  payment_status: string | null;
+  current_period_end: string | null;
+  is_active: boolean;
+  manually_disabled: boolean;
+  disabled_reason: string | null;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  files_used_current_month: number | null;
+  monthly_file_limit: number | null;
+  updated_at: string;
+}
+
+export async function fetchFinancialCustomers(): Promise<FinancialCustomer[]> {
+  const [{ data: subs, error: subsError }, { data: driveRows, error: driveError }] =
+    await Promise.all([
+      supabase
+        .from("subscriptions")
+        .select(
+          "user_id, plan, plan_name, plan_price, payment_status, current_period_end, is_active, manually_disabled, disabled_reason, stripe_subscription_id, stripe_customer_id, files_used_current_month, monthly_file_limit, updated_at",
+        )
+        .order("updated_at", { ascending: false }),
+      supabase.from("google_drive_accounts").select("user_id, account_email"),
+    ]);
+
+  if (subsError) throw subsError;
+  if (driveError) throw driveError;
+
+  const emailByUserId = new Map<string, string>();
+  for (const row of driveRows ?? []) {
+    const em = row.account_email?.trim();
+    if (!em) continue;
+    if (!emailByUserId.has(row.user_id)) {
+      emailByUserId.set(row.user_id, em);
+    }
+  }
+
+  return (subs ?? []).map((r) => ({
+    user_id: r.user_id,
+    account_email: emailByUserId.get(r.user_id) ?? null,
+    plan: r.plan,
+    plan_name: r.plan_name,
+    plan_price: r.plan_price,
+    payment_status: r.payment_status ?? null,
+    current_period_end: r.current_period_end ?? null,
+    is_active: r.is_active ?? true,
+    manually_disabled: r.manually_disabled ?? false,
+    disabled_reason: r.disabled_reason ?? null,
+    stripe_subscription_id: r.stripe_subscription_id ?? null,
+    stripe_customer_id: r.stripe_customer_id ?? null,
+    files_used_current_month: r.files_used_current_month,
+    monthly_file_limit: r.monthly_file_limit,
+    updated_at: r.updated_at,
+  }));
+}
+
+export async function toggleUserActive(
+  userId: string,
+  isActive: boolean,
+  reason?: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({
+      is_active: isActive,
+      manually_disabled: !isActive,
+      disabled_reason: isActive ? null : (reason ?? "Desativado pelo admin"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}

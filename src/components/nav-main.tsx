@@ -1,11 +1,11 @@
-import { type LucideIcon } from "lucide-react"
-import { Link, useLocation } from "react-router-dom"
+import { type LucideIcon, ChevronRight } from "@/lib/icons";
+import { Link, useLocation } from "react-router-dom";
 
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -15,8 +15,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
-import { ChevronRight } from "lucide-react"
+} from "@/components/ui/sidebar";
 
 export function NavMain({
   items,
@@ -39,16 +38,19 @@ export function NavMain({
       <SidebarGroupLabel>Navegação</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          const isActive = location.pathname === item.url
           const hasSubItems = item.items && item.items.length > 0
-          const isSubItemActive = hasSubItems && item.items?.some((sub) => location.pathname === sub.url)
+          const isSubItemActive =
+            hasSubItems && item.items?.some((sub) => location.pathname === sub.url)
+          const isActive = hasSubItems
+            ? location.pathname === item.url || !!isSubItemActive
+            : location.pathname === item.url
 
           if (hasSubItems) {
             return (
               <Collapsible
                 key={item.title}
                 asChild
-                defaultOpen={isActive || isSubItemActive}
+                defaultOpen={isActive}
                 className="group/collapsible"
               >
                 <SidebarMenuItem>

@@ -24,8 +24,7 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "lucide-react": ["./src/lib/lucide-react.ts"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

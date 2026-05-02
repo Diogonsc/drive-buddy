@@ -9,7 +9,7 @@ import {
   Clock,
   RefreshCw,
   LucideIcon
-} from "lucide-react";
+} from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 
 type MediaType = "image" | "video" | "audio" | "document";

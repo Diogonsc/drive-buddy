@@ -1,10 +1,16 @@
-import { CheckCircle2, Circle, Send, UserCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  FaGoogleDrive,
+  FaWhatsapp,
+  Send,
+  UserCheck,
+} from "@/lib/icons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WhatsAppConnectButton } from "@/components/whatsapp/WhatsAppConnectButton";
-import { FaWhatsapp, FaGoogleDrive } from "react-icons/fa6";
 
 interface SetupProgressProps {
   accountCreated: boolean;

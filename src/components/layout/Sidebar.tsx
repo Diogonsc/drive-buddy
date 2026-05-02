@@ -1,17 +1,19 @@
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Link2, 
-  FolderOpen, 
-  Activity, 
+import {
+  LayoutDashboard,
+  Link2,
+  FolderOpen,
+  Activity,
   Settings,
   HelpCircle,
   ChevronLeft,
-  ChevronRight
-} from "lucide-react";
+  ChevronRight,
+  Wallet,
+} from "@/lib/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "react-router-dom";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -36,6 +38,7 @@ export function Sidebar({ currentPath }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const activePath = currentPath || location.pathname;
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
 
   return (
     <aside
@@ -74,6 +77,27 @@ export function Sidebar({ currentPath }: SidebarProps) {
               </Link>
             );
           })}
+          {!adminLoading && isAdmin && (
+            <div className="mt-3 border-t border-sidebar-border pt-3 space-y-1">
+              {!collapsed && (
+                <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Admin
+                </p>
+              )}
+              <Link
+                to="/admin/financial"
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  activePath === "/admin/financial"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-soft"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                )}
+              >
+                <Wallet className={cn("h-5 w-5 shrink-0", activePath === "/admin/financial" && "text-sidebar-primary")} />
+                {!collapsed && <span className="flex-1">Financeiro</span>}
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* Help */}

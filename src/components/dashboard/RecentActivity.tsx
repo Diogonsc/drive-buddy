@@ -1,6 +1,6 @@
 import { ActivityLog, LogEntry } from "@/components/ui/ActivityLog";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight, RefreshCw } from "@/lib/icons";
 
 interface RecentActivityProps {
   entries: LogEntry[];
