@@ -1,5 +1,5 @@
-import { Cloud, MessageCircle, HardDrive, Zap } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { HardDrive, MessageCircle, Zap } from "lucide-react";
 const features = [
   {
     icon: MessageCircle,
@@ -20,7 +20,7 @@ export function AuthBranding() {
     <div className="flex flex-col justify-center p-8 lg:p-12 xl:p-16">
       <div className="mx-auto w-full max-w-md lg:max-w-none">
         <div className="flex items-center gap-3 mb-8">
-          <div className="flex items-center justify-center rounded-lg">
+          <div className="flex items-center justify-center rounded-lg bg-white">
             <img
               src={logo}
               alt="Swiftwapdrive"
