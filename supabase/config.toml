@@ -44,3 +44,11 @@ verify_jwt = false
 # Send Health Alert - Interno (envia email via Resend)
 [functions.send-health-alert]
 verify_jwt = false
+
+# Stripe — Checkout autenticado
+[functions.create-checkout-session]
+verify_jwt = true
+
+# Stripe — Webhook público (assinatura Stripe)
+[functions.stripe-webhook]
+verify_jwt = false
